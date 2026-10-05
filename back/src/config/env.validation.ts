@@ -1,4 +1,4 @@
-import { Type, plainToInstance } from 'class-transformer';
+import { Transform, Type, plainToInstance } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
@@ -6,10 +6,15 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
   Max,
   Min,
+  ValidateIf,
   validateSync,
 } from 'class-validator';
+
+/** `KEY=` in a .env file arrives as an empty string; treat it as unset. */
+const emptyToUndefined = ({ value }: { value: unknown }) => (value === '' ? undefined : value);
 
 enum Environment {
   Development = 'development',
@@ -156,6 +161,35 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   TWILIO_SMS_FROM_NUMBER: string;
+
+  // --- Telegram bot (back SPEC-04 AC-36) ---
+
+  /** Secret: BotFather token. Never logged, returned, or persisted. */
+  @IsString()
+  @IsNotEmpty()
+  TELEGRAM_BOT_TOKEN: string;
+
+  /** Without the leading `@`; used to build `https://t.me/<username>?start=<token>`. */
+  @IsString()
+  @IsNotEmpty()
+  TELEGRAM_BOT_USERNAME: string;
+
+  /** Full public URL of `POST /api/telegram/webhook`. Unset: long polling (local dev). */
+  @IsUrl({ protocols: ['https'], require_tld: true })
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  TELEGRAM_WEBHOOK_URL?: string;
+
+  /** Required only when `TELEGRAM_WEBHOOK_URL` is set (Telegram: 1-256 chars of `A-Za-z0-9_-`). */
+  @Transform(emptyToUndefined)
+  @ValidateIf((env: EnvironmentVariables) => Boolean(env.TELEGRAM_WEBHOOK_URL))
+  @Matches(/^[A-Za-z0-9_-]{1,256}$/)
+  TELEGRAM_WEBHOOK_SECRET?: string;
+
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  TELEGRAM_PRIVACY_POLICY_URL?: string;
 }
 
 export function validate(config: Record<string, unknown>): EnvironmentVariables {

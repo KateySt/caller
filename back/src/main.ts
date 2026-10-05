@@ -5,6 +5,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
+import { TelegramUpdatesService } from './telegram/telegram-updates.service.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 
 async function bootstrap() {
@@ -44,6 +45,9 @@ async function bootstrap() {
 
   const port = configService.get<number>('PORT') ?? 3001;
   await app.listen(port);
+
+  // Not a lifecycle hook: the agent worker reuses AppModule and must not poll Telegram.
+  await app.get(TelegramUpdatesService).start();
 }
 
 await bootstrap();

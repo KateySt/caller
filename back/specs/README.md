@@ -16,3 +16,4 @@ Feature specs for `back/` live here, one file per feature: `SPEC-NN-<slug>.md`.
 | SPEC-01 | WhatsApp text messaging from the user list (v1: messages only) | draft |
 | SPEC-02 | PSTN AI calling agent | draft |
 | SPEC-03 | SMS text messaging from the user list | draft |
+| SPEC-04 | Telegram bot client linking and conversation log (UI: `front/specs/SPEC-03`) | draft |

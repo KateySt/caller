@@ -1,15 +1,17 @@
-import type { Call, SmsMessage, WhatsAppMessage } from "@/lib/api";
+import type { Call, SmsMessage, TelegramMessagePage, TelegramMessage, WhatsAppMessage } from "@/lib/api";
 
 interface UserActivityTimelineProps {
   calls: Call[] | null;
   whatsappMessages: WhatsAppMessage[] | null;
   smsMessages: SmsMessage[] | null;
+  telegramPage: TelegramMessagePage | null;
 }
 
 type TimelineEntry =
   | { id: string; type: "call"; timestamp: string; call: Call }
   | { id: string; type: "whatsapp"; timestamp: string; message: WhatsAppMessage }
-  | { id: string; type: "sms"; timestamp: string; message: SmsMessage };
+  | { id: string; type: "sms"; timestamp: string; message: SmsMessage }
+  | { id: string; type: "telegram"; timestamp: string; message: TelegramMessage };
 
 /**
  * A single chronological, most-recent-first merge of a user's calls and WhatsApp/SMS
@@ -20,6 +22,7 @@ export function UserActivityTimeline({
   calls,
   whatsappMessages,
   smsMessages,
+  telegramPage,
 }: UserActivityTimelineProps) {
   const entries: TimelineEntry[] = [
     ...(calls ?? []).map(
@@ -41,15 +44,31 @@ export function UserActivityTimeline({
         message,
       }),
     ),
+    ...(telegramPage?.messages ?? []).map(
+      (message): TimelineEntry => ({
+        id: `telegram-${message.id}`,
+        type: "telegram",
+        timestamp: message.occurredAt,
+        message,
+      }),
+    ),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-  const hasAnyFailure = calls === null || whatsappMessages === null || smsMessages === null;
+  const hasAnyFailure =
+    calls === null || whatsappMessages === null || smsMessages === null || telegramPage === null;
 
   return (
     <div className="grid gap-4">
       {calls === null && <SectionError label="calls" />}
       {whatsappMessages === null && <SectionError label="WhatsApp messages" />}
       {smsMessages === null && <SectionError label="SMS messages" />}
+      {telegramPage === null && <SectionError label="Telegram messages" />}
+      {telegramPage?.hasMore && (
+        <p className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
+          Only the most recent Telegram messages are shown here. Open the Telegram view on the users list
+          for the full conversation.
+        </p>
+      )}
 
       {entries.length === 0 ? (
         !hasAnyFailure && (
@@ -64,6 +83,7 @@ export function UserActivityTimeline({
               {entry.type === "call" && <CallEntry call={entry.call} />}
               {entry.type === "whatsapp" && <MessageEntry channel="WhatsApp" message={entry.message} />}
               {entry.type === "sms" && <MessageEntry channel="SMS" message={entry.message} />}
+              {entry.type === "telegram" && <TelegramEntry message={entry.message} />}
             </li>
           ))}
         </ul>
@@ -130,6 +150,33 @@ function MessageEntry({ channel, message }: { channel: "WhatsApp" | "SMS"; messa
         {message.status === "failed" ? "Failed to send" : "Sent"}
         {"deliveryMode" in message && message.deliveryMode === "template" ? " (template fallback)" : ""}
       </p>
+    </div>
+  );
+}
+
+function TelegramEntry({ message }: { message: TelegramMessage }) {
+  const isInbound = message.direction === "inbound";
+
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-medium">Telegram · {isInbound ? "Received" : "Sent by us"}</span>
+        <span className="text-xs text-muted-foreground">{formatDateTime(message.occurredAt)}</span>
+      </div>
+
+      {message.contentType === "text" ? (
+        <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm whitespace-pre-wrap">{message.text}</p>
+      ) : (
+        <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm italic text-muted-foreground">
+          {message.contentType} (not shown)
+        </p>
+      )}
+
+      {message.status === "failed" && (
+        <p className="text-xs text-destructive">
+          Failed to send{message.failureReason ? `: ${message.failureReason}` : ""}
+        </p>
+      )}
     </div>
   );
 }

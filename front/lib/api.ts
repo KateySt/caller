@@ -46,6 +46,40 @@ export interface SmsMessage {
   createdAt: string;
 }
 
+export type TelegramStatus = "not_linked" | "linked" | "opted_out" | "unreachable";
+
+export interface TelegramStatusInfo {
+  status: TelegramStatus;
+  linkedAt: string | null;
+  optedOutAt: string | null;
+  unreachableAt: string | null;
+  /** An unused, unexpired invitation exists (the raw link itself is never retrievable). */
+  hasPendingInvite: boolean;
+}
+
+export interface TelegramInvite {
+  link: string;
+  expiresAt: string;
+  status: TelegramStatusInfo;
+}
+
+export interface TelegramMessage {
+  id: string;
+  direction: "inbound" | "outbound";
+  /** `text`, or a placeholder kind for non-text content (`photo`, `voice`, ...). */
+  contentType: string;
+  text: string | null;
+  status: "received" | "sent" | "failed";
+  failureReason: string | null;
+  occurredAt: string;
+}
+
+export interface TelegramMessagePage {
+  /** Oldest first. */
+  messages: TelegramMessage[];
+  hasMore: boolean;
+}
+
 export interface AgentSettings {
   systemPrompt: string;
   updatedAt: string;
@@ -177,6 +211,44 @@ export const api = {
 
   listSmsMessages(userId: string): Promise<SmsMessage[]> {
     return requestJson<SmsMessage[]>(`/users/${encodeURIComponent(userId)}/sms-messages`);
+  },
+
+  getTelegramStatus(userId: string): Promise<TelegramStatusInfo> {
+    return requestJson<TelegramStatusInfo>(`/users/${encodeURIComponent(userId)}/telegram`);
+  },
+
+  createTelegramInvite(userId: string): Promise<TelegramInvite> {
+    return requestJson<TelegramInvite>(
+      `/users/${encodeURIComponent(userId)}/telegram-invite`,
+      { method: "POST" },
+    );
+  },
+
+  listTelegramMessages(
+    userId: string,
+    options: { limit?: number; before?: string } = {},
+  ): Promise<TelegramMessagePage> {
+    const query = new URLSearchParams();
+    if (options.limit !== undefined) query.set("limit", String(options.limit));
+    if (options.before !== undefined) query.set("before", options.before);
+    const suffix = query.size > 0 ? `?${query}` : "";
+
+    return requestJson<TelegramMessagePage>(
+      `/users/${encodeURIComponent(userId)}/telegram-messages${suffix}`,
+    );
+  },
+
+  sendTelegramMessage(userId: string, text: string): Promise<TelegramMessage> {
+    return requestJson<TelegramMessage>(
+      `/users/${encodeURIComponent(userId)}/telegram-messages`,
+      { method: "POST", body: JSON.stringify({ text }) },
+    );
+  },
+
+  async deleteTelegramMessages(userId: string): Promise<void> {
+    await requestJson<null>(`/users/${encodeURIComponent(userId)}/telegram-messages`, {
+      method: "DELETE",
+    });
   },
 
   getAgentSettings(): Promise<AgentSettings> {

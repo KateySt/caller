@@ -7,15 +7,20 @@ Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + shadcn/ui.
 - **Framework**: Next.js 16, App Router, React 19, Turbopack dev server.
 - **Styling**: Tailwind CSS v4 (CSS-based config, no `tailwind.config.ts` — theme tokens live in `app/globals.css` via `@theme inline`).
 - **UI components**: shadcn/ui, `base-nova` style, `neutral` base color, icons from `lucide-react`. Config in `components.json`.
+- **Forms**: `react-hook-form` + `zod` (`@hookform/resolvers`) for every form — schemas in `lib/schemas/`, shared `components/form-field.tsx` (`FormField`, `CharacterCounter`). Never hand-roll field/error/submitting `useState`. See the `forms-best-practices` skill.
 - **Import alias**: `@/*` → project root (see `tsconfig.json`).
 
 ## Structure
 
-- `app/` — routes, layouts, global styles (App Router conventions). `app/page.tsx` is the Agent Settings page (home); `app/users/` is the contact list (server component, `force-dynamic`); `app/users/[id]/` is a contact's activity timeline (calls + WhatsApp + SMS, merged and sorted). The root layout mounts `<SiteHeader />` (nav between the two top-level pages) and `<Toaster />`.
+- `app/` — routes, layouts, global styles (App Router conventions). `app/page.tsx` is the Agent Settings page (home); `app/users/` is the contact list (server component, `force-dynamic`); `app/users/[id]/` is a contact's activity timeline (calls + WhatsApp + SMS + Telegram, merged and sorted). The root layout mounts `<SiteHeader />` (nav between the two top-level pages) and `<Toaster />`.
 - `components/ui/` — shadcn-generated components (owned by you once added — edit freely, these are not a library dependency).
-- `components/users-list.tsx` — the list plus a per-row action group (Message/Call/SMS/Edit) and the "Add contact" button. `create-user-dialog.tsx`, `edit-user-dialog.tsx`, `send-message-dialog.tsx`, `send-sms-dialog.tsx`, and `call-dialog.tsx` are lifted above the rows and mounted only while open, so each open starts clean. After a create/edit, the list is refreshed with `router.refresh()` rather than by patching local state. In-progress call status is tracked in `UsersList` itself (not inside the dialog), polled on an interval, so the "Call" button's disabled state survives the dialog being closed and reopened.
+- `components/users-list.tsx` — the list plus a per-row action group (Message/Call/SMS/Edit) and the "Add contact" button. `create-user-dialog.tsx`, `edit-user-dialog.tsx`, `send-message-dialog.tsx`, `send-sms-dialog.tsx`, and `call-dialog.tsx` (forms built per `forms-best-practices`) are lifted above the rows and mounted only while open, so each open starts clean. After a create/edit, the list is refreshed with `router.refresh()` rather than by patching local state. In-progress call status is tracked in `UsersList` itself (not inside the dialog), polled on an interval, so the "Call" button's disabled state survives the dialog being closed and reopened.
+- `components/telegram-dialog.tsx` — per-contact Telegram view (`front/specs/SPEC-03`), opened from the row's "Telegram" button in `users-list.tsx`; a thin composition of `telegram-invite-panel.tsx` (status label, generate/copy link with confirm), `telegram-conversation-log.tsx` (history, load earlier, scroll-follow), `telegram-composer.tsx` (RHF + zod message form, gated by status) and the delete-history confirm. Server state and the 10 s poll (only while mounted) live in `hooks/use-telegram-conversation.ts`.
 - `components/agent-settings-form.tsx` — the system-prompt editor on the home page.
-- `components/user-activity-timeline.tsx` — merges a contact's calls/WhatsApp/SMS history into one chronological list; each source that failed to load reports its own error without hiding the others.
+- `components/user-activity-timeline.tsx` — merges a contact's calls/WhatsApp/SMS/Telegram (latest 50) history into one chronological list; each source that failed to load reports its own error without hiding the others.
+- `lib/schemas/` — zod schemas (`fields.ts` helper, `user.ts`, `messages.ts`, `telegram.ts`, `agent-settings.ts`) used by react-hook-form resolvers.
+- `components/form-field.tsx` — label + control + accessible error wiring shared by all forms.
+- `hooks/` — client hooks (`use-telegram-conversation.ts`).
 - `lib/api.ts` — the typed client for the backend. All API access goes through it; don't `fetch` the backend directly from a component.
 - `lib/utils.ts` — shadcn's `cn()` helper and other shared utilities.
 
@@ -36,6 +41,7 @@ When writing, reviewing, or refactoring code in this project, use these skills p
 - `vercel-react-best-practices` — React/Next.js performance (components, pages, data fetching, bundling).
 - `vercel-composition-patterns` — component API design (compound components, render props, context) when refactoring prop-heavy components or building reusable UI.
 - `vercel-react-view-transitions` — page/route animations and enter/exit transitions via the View Transition API.
+- `forms-best-practices` — any form or input validation (react-hook-form + zod + `FormField`); always use it for forms.
 - `livekit-best-practices` — anything touching `livekit-client` / `@livekit/components-react` (see `.claude/skills/`).
 
 ## Backend

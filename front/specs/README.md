@@ -14,3 +14,4 @@ Feature specs for `front/` live here, one file per feature: `SPEC-NN-<slug>.md`.
 |---|---|---|
 | SPEC-01 | WhatsApp text messaging from the user list | draft |
 | SPEC-02 | PSTN AI call UX, agent settings, and activity timeline | draft |
+| SPEC-03 | Telegram link and conversation UI (backend: `back/specs/SPEC-04`) | draft |

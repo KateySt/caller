@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { MessageSquareIcon, PencilIcon, PhoneIcon, PlusIcon, SendIcon } from "lucide-react";
+import {
+  BotMessageSquareIcon,
+  MessageSquareIcon,
+  PencilIcon,
+  PhoneIcon,
+  PlusIcon,
+  SendIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CallDialog } from "@/components/call-dialog";
@@ -11,11 +18,13 @@ import { CreateUserDialog } from "@/components/create-user-dialog";
 import { EditUserDialog } from "@/components/edit-user-dialog";
 import { SendMessageDialog } from "@/components/send-message-dialog";
 import { SendSmsDialog } from "@/components/send-sms-dialog";
+import { TelegramDialog } from "@/components/telegram-dialog";
 import { api, type Call, type User } from "@/lib/api";
 
 const CREATE_TRIGGER_ID = "create-user-trigger";
 const messageTriggerId = (userId: string) => `message-trigger-${userId}`;
 const smsTriggerId = (userId: string) => `sms-trigger-${userId}`;
+const telegramTriggerId = (userId: string) => `telegram-trigger-${userId}`;
 const editTriggerId = (userId: string) => `edit-trigger-${userId}`;
 const callTriggerId = (userId: string) => `call-trigger-${userId}`;
 
@@ -30,6 +39,7 @@ export function UsersList({ users }: { users: User[] }) {
   const [isCreating, setIsCreating] = useState(false);
   const [messageTarget, setMessageTarget] = useState<User | null>(null);
   const [smsTarget, setSmsTarget] = useState<User | null>(null);
+  const [telegramTarget, setTelegramTarget] = useState<User | null>(null);
   const [editTarget, setEditTarget] = useState<User | null>(null);
 
   // Calls are tracked by user id here (not inside the dialog) so a user's "in progress"
@@ -138,6 +148,15 @@ export function UsersList({ users }: { users: User[] }) {
                     SMS
                   </Button>
                   <Button
+                    id={telegramTriggerId(user.id)}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTelegramTarget(user)}
+                  >
+                    <BotMessageSquareIcon />
+                    Telegram
+                  </Button>
+                  <Button
                     id={editTriggerId(user.id)}
                     variant="outline"
                     size="sm"
@@ -177,6 +196,15 @@ export function UsersList({ users }: { users: User[] }) {
           user={smsTarget}
           triggerId={smsTriggerId(smsTarget.id)}
           onClose={() => setSmsTarget(null)}
+        />
+      )}
+
+      {telegramTarget && (
+        <TelegramDialog
+          key={telegramTarget.id}
+          user={telegramTarget}
+          triggerId={telegramTriggerId(telegramTarget.id)}
+          onClose={() => setTelegramTarget(null)}
         />
       )}
 

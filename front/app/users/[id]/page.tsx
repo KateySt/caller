@@ -40,10 +40,11 @@ export default async function UserActivityPage({ params }: UserActivityPageProps
     notFound();
   }
 
-  const [callsResult, whatsappResult, smsResult] = await Promise.allSettled([
+  const [callsResult, whatsappResult, smsResult, telegramResult] = await Promise.allSettled([
     api.listCalls(id),
     api.listWhatsAppMessages(id),
     api.listSmsMessages(id),
+    api.listTelegramMessages(id, { limit: 50 }),
   ]);
 
   return (
@@ -61,6 +62,7 @@ export default async function UserActivityPage({ params }: UserActivityPageProps
         calls={callsResult.status === "fulfilled" ? callsResult.value : null}
         whatsappMessages={whatsappResult.status === "fulfilled" ? whatsappResult.value : null}
         smsMessages={smsResult.status === "fulfilled" ? smsResult.value : null}
+        telegramPage={telegramResult.status === "fulfilled" ? telegramResult.value : null}
       />
     </main>
   );
