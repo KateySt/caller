@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CharacterCounter, FormField } from "@/components/form-field";
-import { api, MAX_MESSAGE_LENGTH, type TelegramMessage, type TelegramStatus } from "@/lib/api";
+import { useSendTelegramMessage } from "@/hooks/use-telegram-mutations";
+import { MAX_MESSAGE_LENGTH, type TelegramStatus } from "@/lib/api";
 import {
   sendTelegramMessageSchema,
   type SendTelegramMessageInput,
@@ -26,9 +27,6 @@ const DISABLED_REASON: Record<Exclude<TelegramStatus, "linked">, string> = {
 interface TelegramComposerProps {
   userId: string;
   status: TelegramStatus;
-  onSent: (message: TelegramMessage) => void;
-  /** Called after a failed send so the parent can refresh status/history (AC-17). */
-  onSendFailed: () => void;
   /** Lets the parent block closing and "Delete history" while a send is in flight (AC-15, AC-20). */
   onSubmittingChange: (isSubmitting: boolean) => void;
 }
@@ -36,10 +34,9 @@ interface TelegramComposerProps {
 export function TelegramComposer({
   userId,
   status,
-  onSent,
-  onSendFailed,
   onSubmittingChange,
 }: TelegramComposerProps) {
+  const sendMessage = useSendTelegramMessage(userId);
   const {
     register,
     handleSubmit,
@@ -62,12 +59,12 @@ export function TelegramComposer({
 
   const submit = handleSubmit(async ({ text }) => {
     try {
-      onSent(await api.sendTelegramMessage(userId, text));
-      reset(); // AC-16
+      // The hook appends the message to the cached history and re-syncs status (AC-16, AC-17).
+      await sendMessage.mutateAsync(text);
+      reset();
     } catch (error) {
       // The typed text stays in the field (AC-17).
       toast.error(error instanceof Error ? error.message : "Could not send the message.");
-      onSendFailed();
     }
     // Disabling during the send dropped focus; give it back once enabled again.
     requestAnimationFrame(() => setFocus("text"));

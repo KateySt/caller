@@ -14,7 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/form-field";
-import { api, type User } from "@/lib/api";
+import { useUpdateUser } from "@/hooks/use-user-mutations";
+import type { User } from "@/lib/api";
 import { userSchema, type UserFormInput, type UserFormValues } from "@/lib/schemas/user";
 
 interface EditUserDialogProps {
@@ -22,15 +23,14 @@ interface EditUserDialogProps {
   /** Id of the row button that opened this dialog, so focus returns there on close. */
   triggerId: string;
   onClose: () => void;
-  /** Called after the backend confirms the update, to refresh the list. */
-  onUpdated: () => void;
 }
 
 /**
  * Mounted only while open and keyed by user id, so every open starts pre-filled with
  * that contact's *current* values — not whatever was typed during a previous open.
  */
-export function EditUserDialog({ user, triggerId, onClose, onUpdated }: EditUserDialogProps) {
+export function EditUserDialog({ user, triggerId, onClose }: EditUserDialogProps) {
+  const updateUser = useUpdateUser(user.id);
   const {
     register,
     handleSubmit,
@@ -48,10 +48,9 @@ export function EditUserDialog({ user, triggerId, onClose, onUpdated }: EditUser
 
   const submit = handleSubmit(async (values) => {
     try {
-      const updated = await api.updateUser(user.id, values);
+      const updated = await updateUser.mutateAsync(values);
 
       toast.success(`${updated.name} updated.`);
-      onUpdated();
       onClose();
     } catch (error) {
       // Keeps the dialog open with the edited values intact so they can be corrected.

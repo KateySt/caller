@@ -14,15 +14,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/form-field";
-import { api } from "@/lib/api";
+import { useCreateUser } from "@/hooks/use-user-mutations";
 import { userSchema, type UserFormInput, type UserFormValues } from "@/lib/schemas/user";
 
 interface CreateUserDialogProps {
   /** Id of the button that opened this dialog, so focus returns there on close. */
   triggerId: string;
   onClose: () => void;
-  /** Called after the backend confirms the new contact, to refresh the list. */
-  onCreated: () => void;
 }
 
 /**
@@ -30,7 +28,8 @@ interface CreateUserDialogProps {
  * Validation mirrors the backend's rules; the backend stays the authority
  * (it owns the uniqueness check, which the client cannot know up front).
  */
-export function CreateUserDialog({ triggerId, onClose, onCreated }: CreateUserDialogProps) {
+export function CreateUserDialog({ triggerId, onClose }: CreateUserDialogProps) {
+  const createUser = useCreateUser();
   const {
     register,
     handleSubmit,
@@ -49,10 +48,10 @@ export function CreateUserDialog({ triggerId, onClose, onCreated }: CreateUserDi
 
   const submit = handleSubmit(async (values) => {
     try {
-      const user = await api.createUser(values);
+      // Resolves once the users list has been refetched, so the new contact is already shown.
+      const user = await createUser.mutateAsync(values);
 
       toast.success(`${user.name} added.`);
-      onCreated();
       onClose();
     } catch (error) {
       // Keeps the dialog open with both fields intact so the input can be corrected.

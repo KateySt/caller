@@ -14,7 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CharacterCounter, FormField } from "@/components/form-field";
-import { api, MAX_SMS_LENGTH, type User } from "@/lib/api";
+import { useSendSms } from "@/hooks/use-send-mutations";
+import { MAX_SMS_LENGTH, type User } from "@/lib/api";
 import { sendSmsSchema, type MessageBodyInput, type MessageBodyValues } from "@/lib/schemas/messages";
 
 interface SendSmsDialogProps {
@@ -29,6 +30,7 @@ interface SendSmsDialogProps {
  * distinction to surface, every SMS goes out as typed (SPEC-01 AC-30).
  */
 export function SendSmsDialog({ user, triggerId, onClose }: SendSmsDialogProps) {
+  const sendSms = useSendSms(user.id);
   const {
     register,
     handleSubmit,
@@ -48,7 +50,7 @@ export function SendSmsDialog({ user, triggerId, onClose }: SendSmsDialogProps) 
 
   const submit = handleSubmit(async ({ body }) => {
     try {
-      await api.sendSms(user.id, body);
+      await sendSms.mutateAsync(body);
 
       toast.success(`SMS sent to ${user.name}.`);
       onClose();

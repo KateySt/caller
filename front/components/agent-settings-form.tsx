@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CharacterCounter, FormField } from "@/components/form-field";
-import { api, MAX_SYSTEM_PROMPT_LENGTH, type AgentSettings } from "@/lib/api";
+import { useAgentSettings, useUpdateAgentSettings } from "@/hooks/use-agent-settings";
+import { MAX_SYSTEM_PROMPT_LENGTH } from "@/lib/api";
 import {
   agentSettingsSchema,
   type AgentSettingsFormInput,
@@ -17,7 +18,9 @@ import {
  * The single global system prompt every call snapshots at start (front SPEC-02 AC-7..AC-12).
  * Not a dialog — this is the page's primary content, so there's nothing to "cancel" back to.
  */
-export function AgentSettingsForm({ initialSettings }: { initialSettings: AgentSettings }) {
+export function AgentSettingsForm() {
+  const { data: settings } = useAgentSettings();
+  const updateSettings = useUpdateAgentSettings();
   const {
     register,
     handleSubmit,
@@ -26,13 +29,13 @@ export function AgentSettingsForm({ initialSettings }: { initialSettings: AgentS
     formState: { errors, isSubmitting },
   } = useForm<AgentSettingsFormInput, unknown, AgentSettingsFormValues>({
     resolver: zodResolver(agentSettingsSchema),
-    defaultValues: { systemPrompt: initialSettings.systemPrompt },
+    defaultValues: { systemPrompt: settings.systemPrompt },
   });
   const length = (useWatch({ control, name: "systemPrompt" }) ?? "").trim().length;
 
   const submit = handleSubmit(async ({ systemPrompt }) => {
     try {
-      const updated = await api.updateAgentSettings(systemPrompt);
+      const updated = await updateSettings.mutateAsync(systemPrompt);
 
       // Show the trimmed value the server stored.
       reset({ systemPrompt: updated.systemPrompt });

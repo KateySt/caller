@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { AgentSettingsForm } from "@/components/agent-settings-form";
-import { api, type AgentSettings } from "@/lib/api";
+import { api } from "@/lib/api";
+import { agentSettingsQueries } from "@/lib/queries/agent-settings";
+import { makeQueryClient } from "@/lib/query-client";
 
 export const metadata: Metadata = {
   title: "Agent Settings",
@@ -10,12 +13,16 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  let settings: AgentSettings | null = null;
+  // Loaded here (not in the client) so a failure renders the page-level error below; the
+  // client form then reads the same data from the hydrated cache.
+  const queryClient = makeQueryClient();
+  let isLoaded = false;
 
   try {
-    settings = await api.getAgentSettings();
+    queryClient.setQueryData(agentSettingsQueries.detail().queryKey, await api.getAgentSettings());
+    isLoaded = true;
   } catch {
-    settings = null;
+    isLoaded = false;
   }
 
   return (
@@ -27,7 +34,7 @@ export default async function HomePage() {
         </p>
       </header>
 
-      {settings === null ? (
+      {!isLoaded ? (
         <p
           role="alert"
           className="rounded-xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive"
@@ -35,7 +42,9 @@ export default async function HomePage() {
           Could not load the agent settings. Check that the API is running, then reload the page.
         </p>
       ) : (
-        <AgentSettingsForm initialSettings={settings} />
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <AgentSettingsForm />
+        </HydrationBoundary>
       )}
     </main>
   );

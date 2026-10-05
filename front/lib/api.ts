@@ -116,6 +116,11 @@ export class ApiError extends Error {
   }
 }
 
+/** Lets TanStack Query cancel an in-flight read when its observer unmounts or its key changes. */
+export interface RequestOptions {
+  signal?: AbortSignal;
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -123,7 +128,11 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
       headers: { "Content-Type": "application/json", ...init?.headers },
     });
-  } catch {
+  } catch (error) {
+    // A cancelled request is not a connectivity problem — let the caller see the abort.
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
+    }
     // A network failure has no status; the caller still gets something it can show.
     throw new ApiError("Could not reach the server. Is the backend running?", 0);
   }
@@ -163,8 +172,8 @@ export interface UpdateUserInput {
 }
 
 export const api = {
-  listUsers(): Promise<User[]> {
-    return requestJson<User[]>("/users");
+  listUsers({ signal }: RequestOptions = {}): Promise<User[]> {
+    return requestJson<User[]>("/users", { signal });
   },
 
   createUser(input: CreateUserInput): Promise<User> {
@@ -213,8 +222,10 @@ export const api = {
     return requestJson<SmsMessage[]>(`/users/${encodeURIComponent(userId)}/sms-messages`);
   },
 
-  getTelegramStatus(userId: string): Promise<TelegramStatusInfo> {
-    return requestJson<TelegramStatusInfo>(`/users/${encodeURIComponent(userId)}/telegram`);
+  getTelegramStatus(userId: string, { signal }: RequestOptions = {}): Promise<TelegramStatusInfo> {
+    return requestJson<TelegramStatusInfo>(`/users/${encodeURIComponent(userId)}/telegram`, {
+      signal,
+    });
   },
 
   createTelegramInvite(userId: string): Promise<TelegramInvite> {
@@ -226,7 +237,7 @@ export const api = {
 
   listTelegramMessages(
     userId: string,
-    options: { limit?: number; before?: string } = {},
+    options: { limit?: number; before?: string } & RequestOptions = {},
   ): Promise<TelegramMessagePage> {
     const query = new URLSearchParams();
     if (options.limit !== undefined) query.set("limit", String(options.limit));
@@ -235,6 +246,7 @@ export const api = {
 
     return requestJson<TelegramMessagePage>(
       `/users/${encodeURIComponent(userId)}/telegram-messages${suffix}`,
+      { signal: options.signal },
     );
   },
 
@@ -251,8 +263,8 @@ export const api = {
     });
   },
 
-  getAgentSettings(): Promise<AgentSettings> {
-    return requestJson<AgentSettings>("/agent-settings");
+  getAgentSettings({ signal }: RequestOptions = {}): Promise<AgentSettings> {
+    return requestJson<AgentSettings>("/agent-settings", { signal });
   },
 
   updateAgentSettings(systemPrompt: string): Promise<AgentSettings> {
@@ -272,9 +284,10 @@ export const api = {
     return requestJson<Call[]>(`/users/${encodeURIComponent(userId)}/calls`);
   },
 
-  getCall(userId: string, callId: string): Promise<Call> {
+  getCall(userId: string, callId: string, { signal }: RequestOptions = {}): Promise<Call> {
     return requestJson<Call>(
       `/users/${encodeURIComponent(userId)}/calls/${encodeURIComponent(callId)}`,
+      { signal },
     );
   },
 };

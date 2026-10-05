@@ -14,7 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CharacterCounter, FormField } from "@/components/form-field";
-import { api, MAX_MESSAGE_LENGTH, type User } from "@/lib/api";
+import { useSendWhatsAppMessage } from "@/hooks/use-send-mutations";
+import { MAX_MESSAGE_LENGTH, type User } from "@/lib/api";
 import {
   sendWhatsAppMessageSchema,
   type MessageBodyInput,
@@ -33,6 +34,7 @@ interface SendMessageDialogProps {
  * form with an empty field — including when the operator switches contacts.
  */
 export function SendMessageDialog({ user, triggerId, onClose }: SendMessageDialogProps) {
+  const sendMessage = useSendWhatsAppMessage(user.id);
   const {
     register,
     handleSubmit,
@@ -54,7 +56,7 @@ export function SendMessageDialog({ user, triggerId, onClose }: SendMessageDialo
 
   const submit = handleSubmit(async ({ body }) => {
     try {
-      const { deliveryMode } = await api.sendMessage(user.id, body);
+      const { deliveryMode } = await sendMessage.mutateAsync(body);
 
       if (deliveryMode === "freeform") {
         toast.success(`Message sent to ${user.name}.`);

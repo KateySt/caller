@@ -5,12 +5,8 @@ import { CopyIcon, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  api,
-  type TelegramInvite,
-  type TelegramStatus,
-  type TelegramStatusInfo,
-} from "@/lib/api";
+import { useCreateTelegramInvite } from "@/hooks/use-telegram-mutations";
+import type { TelegramStatus, TelegramStatusInfo } from "@/lib/api";
 
 const STATUS_LABEL: Record<TelegramStatus, string> = {
   not_linked: "Not linked",
@@ -26,21 +22,18 @@ function formatTimestamp(isoTimestamp: string): string {
 interface TelegramInvitePanelProps {
   userId: string;
   statusInfo: TelegramStatusInfo;
-  onStatusChange: (status: TelegramStatusInfo) => void;
 }
 
 /**
  * Status label plus invitation link generation (front SPEC-03 AC-3..7). The raw link lives
  * only in this component's state: it is shown once and discarded when the dialog closes.
  */
-export function TelegramInvitePanel({
-  userId,
-  statusInfo,
-  onStatusChange,
-}: TelegramInvitePanelProps) {
-  const [invite, setInvite] = useState<TelegramInvite | null>(null);
+export function TelegramInvitePanel({ userId, statusInfo }: TelegramInvitePanelProps) {
+  // The mutation's `data` is the link: it lives only as long as this panel is mounted.
+  const createInvite = useCreateTelegramInvite(userId);
+  const invite = createInvite.data ?? null;
+  const isGenerating = createInvite.isPending;
   const [isConfirming, setIsConfirming] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const linkFieldId = useId();
   const linkRef = useRef<HTMLInputElement>(null);
@@ -51,15 +44,10 @@ export function TelegramInvitePanel({
 
   async function generate() {
     setIsConfirming(false);
-    setIsGenerating(true);
     try {
-      const created = await api.createTelegramInvite(userId);
-      setInvite(created);
-      onStatusChange(created.status);
+      await createInvite.mutateAsync();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not generate the link.");
-    } finally {
-      setIsGenerating(false);
     }
   }
 

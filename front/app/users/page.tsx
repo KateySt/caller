@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { UsersList } from "@/components/users-list";
-import { api, type User } from "@/lib/api";
+import { api } from "@/lib/api";
+import { userQueries } from "@/lib/queries/users";
+import { makeQueryClient } from "@/lib/query-client";
 
 export const metadata: Metadata = {
   title: "Users",
@@ -10,12 +13,16 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
-  let users: User[] | null = null;
+  // Loaded here (not in the client) so a failure renders the page-level error below; the
+  // client list then reads the same data from the hydrated cache.
+  const queryClient = makeQueryClient();
+  let isLoaded = false;
 
   try {
-    users = await api.listUsers();
+    queryClient.setQueryData(userQueries.list().queryKey, await api.listUsers());
+    isLoaded = true;
   } catch {
-    users = null;
+    isLoaded = false;
   }
 
   return (
@@ -27,7 +34,7 @@ export default async function UsersPage() {
         </p>
       </header>
 
-      {users === null ? (
+      {!isLoaded ? (
         <p
           role="alert"
           className="rounded-xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive"
@@ -35,7 +42,9 @@ export default async function UsersPage() {
           Could not load the user list. Check that the API is running, then reload the page.
         </p>
       ) : (
-        <UsersList users={users} />
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <UsersList />
+        </HydrationBoundary>
       )}
     </main>
   );

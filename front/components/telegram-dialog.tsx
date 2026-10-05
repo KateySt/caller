@@ -15,7 +15,8 @@ import { TelegramComposer } from "@/components/telegram-composer";
 import { TelegramConversationLog } from "@/components/telegram-conversation-log";
 import { TelegramInvitePanel } from "@/components/telegram-invite-panel";
 import { useTelegramConversation } from "@/hooks/use-telegram-conversation";
-import { api, type TelegramStatus, type User } from "@/lib/api";
+import { useDeleteTelegramMessages } from "@/hooks/use-telegram-mutations";
+import type { TelegramStatus, User } from "@/lib/api";
 
 const EMPTY_HISTORY_TEXT: Record<TelegramStatus, string> = {
   not_linked:
@@ -41,9 +42,11 @@ export function TelegramDialog({ user, triggerId, onClose }: TelegramDialogProps
   const conversation = useTelegramConversation(user.id);
   const { statusInfo, messages, loadState } = conversation;
 
+  const deleteMessages = useDeleteTelegramMessages(user.id);
+  const isDeleting = deleteMessages.isPending;
+
   const [isSending, setIsSending] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const isBusy = isSending || isDeleting;
 
@@ -55,15 +58,12 @@ export function TelegramDialog({ user, triggerId, onClose }: TelegramDialogProps
 
   async function deleteHistory() {
     setIsConfirmingDelete(false);
-    setIsDeleting(true);
     try {
-      await api.deleteTelegramMessages(user.id);
-      conversation.clearMessages();
+      await deleteMessages.mutateAsync();
+      conversation.clearEarlier();
       toast.success("Conversation history deleted.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not delete the history.");
-    } finally {
-      setIsDeleting(false);
     }
   }
 
@@ -99,7 +99,6 @@ export function TelegramDialog({ user, triggerId, onClose }: TelegramDialogProps
             <TelegramInvitePanel
               userId={user.id}
               statusInfo={statusInfo}
-              onStatusChange={conversation.updateStatus}
             />
 
             <TelegramConversationLog
@@ -150,8 +149,6 @@ export function TelegramDialog({ user, triggerId, onClose }: TelegramDialogProps
             <TelegramComposer
               userId={user.id}
               status={statusInfo.status}
-              onSent={conversation.appendSent}
-              onSendFailed={() => void conversation.refresh({ isPoll: false })}
               onSubmittingChange={setIsSending}
             />
           </>

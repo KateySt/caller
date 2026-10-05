@@ -1,86 +1,55 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type TelegramMessage, type TelegramStatusInfo } from "@/lib/api";
-
-/** How often status and history are re-fetched while mounted (front SPEC-03 AC-18). */
-const REFRESH_INTERVAL_MS = 10_000;
+import { useCallback, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { api, type TelegramMessage } from "@/lib/api";
+import { telegramQueries } from "@/lib/queries/telegram";
 
 type LoadState = { phase: "loading" } | { phase: "ready" } | { phase: "error"; message: string };
 
+interface EarlierPages {
+  messages: TelegramMessage[];
+  hasMore: boolean;
+}
+
 /**
- * Server state of one contact's Telegram conversation: status, the most recent window of
- * messages (replaced on every refresh) and any older pages the operator loaded on request.
- * Polls while mounted; a stale response (superseded by a newer request, send or delete)
- * is dropped, and a failed background poll keeps the last good state.
+ * Server state of one contact's Telegram conversation: status and the most recent window of
+ * messages (both polled while mounted — a failed poll keeps the last good data), plus any
+ * older pages the operator loaded on request. Those are kept apart because re-polling them
+ * every few seconds would be wasted work.
  */
 export function useTelegramConversation(userId: string) {
-  const [statusInfo, setStatusInfo] = useState<TelegramStatusInfo | null>(null);
-  const [recentMessages, setRecentMessages] = useState<TelegramMessage[]>([]);
-  const [earlierMessages, setEarlierMessages] = useState<TelegramMessage[]>([]);
-  const [hasEarlier, setHasEarlier] = useState(false);
-  const [loadState, setLoadState] = useState<LoadState>({ phase: "loading" });
+  const statusQuery = useQuery(telegramQueries.status(userId));
+  const recentQuery = useQuery(telegramQueries.recentMessages(userId));
 
-  const latestRequestRef = useRef(0);
-  const hasLoadedEarlierRef = useRef(false);
-
-  const refresh = useCallback(
-    async (options: { isPoll: boolean }) => {
-      const requestNumber = ++latestRequestRef.current;
-      try {
-        const [nextStatus, page] = await Promise.all([
-          api.getTelegramStatus(userId),
-          api.listTelegramMessages(userId),
-        ]);
-        if (requestNumber !== latestRequestRef.current) {
-          return;
-        }
-
-        setStatusInfo(nextStatus);
-        setRecentMessages(page.messages);
-        if (!hasLoadedEarlierRef.current) {
-          setHasEarlier(page.hasMore);
-        }
-        setLoadState({ phase: "ready" });
-      } catch (error) {
-        if (requestNumber !== latestRequestRef.current || options.isPoll) {
-          return;
-        }
-        setLoadState({
-          phase: "error",
-          message: error instanceof Error ? error.message : "Could not load Telegram data.",
-        });
-      }
-    },
-    [userId],
-  );
-
-  useEffect(() => {
-    // Deferred a tick so the first load, like every poll, sets state from a callback
-    // rather than synchronously inside the effect body.
-    const initialLoad = setTimeout(() => void refresh({ isPoll: false }), 0);
-    const interval = setInterval(() => void refresh({ isPoll: true }), REFRESH_INTERVAL_MS);
-
-    return () => {
-      clearTimeout(initialLoad);
-      clearInterval(interval);
-    };
-  }, [refresh]);
+  const [earlier, setEarlier] = useState<EarlierPages | null>(null);
 
   const messages = useMemo(() => {
     const byId = new Map<string, TelegramMessage>();
-    for (const message of [...earlierMessages, ...recentMessages]) {
+    for (const message of [...(earlier?.messages ?? []), ...(recentQuery.data?.messages ?? [])]) {
       byId.set(message.id, message);
     }
 
     return [...byId.values()];
-  }, [earlierMessages, recentMessages]);
+  }, [earlier, recentQuery.data]);
 
-  /** Back to the loading state and refetch (the error view's Retry). */
-  const retry = useCallback(() => {
-    setLoadState({ phase: "loading" });
-    void refresh({ isPoll: false });
-  }, [refresh]);
+  // Only a load with nothing to show is an error; a failed background poll isn't.
+  const failedQuery = [statusQuery, recentQuery].find((query) => query.isError && !query.data);
+  const loadState: LoadState = failedQuery?.error
+    ? { phase: "error", message: failedQuery.error.message }
+    : statusQuery.data && recentQuery.data
+      ? { phase: "ready" }
+      : { phase: "loading" };
+
+  const loadEarlierMutation = useMutation({
+    mutationFn: (before: string) => api.listTelegramMessages(userId, { before }),
+    onSuccess: (page) =>
+      setEarlier((previous) => ({
+        messages: [...page.messages, ...(previous?.messages ?? [])],
+        hasMore: page.hasMore,
+      })),
+  });
+  const { mutateAsync: fetchEarlierPage } = loadEarlierMutation;
 
   /** Fetches the page before the oldest shown message; rejects on failure. */
   const loadEarlier = useCallback(async () => {
@@ -88,40 +57,25 @@ export function useTelegramConversation(userId: string) {
     if (!oldest) {
       return;
     }
-    const page = await api.listTelegramMessages(userId, { before: oldest.id });
-    hasLoadedEarlierRef.current = true;
-    setEarlierMessages((previous) => [...page.messages, ...previous]);
-    setHasEarlier(page.hasMore);
-  }, [messages, userId]);
+    await fetchEarlierPage(oldest.id);
+  }, [messages, fetchEarlierPage]);
 
-  /** Shows a just-sent entry immediately; any in-flight refresh started earlier is now stale. */
-  const appendSent = useCallback((message: TelegramMessage) => {
-    latestRequestRef.current++;
-    setRecentMessages((previous) => [...previous, message]);
-  }, []);
-
-  /** After a successful delete (AC-22). */
-  const clearMessages = useCallback(() => {
-    latestRequestRef.current++;
-    setRecentMessages([]);
-    setEarlierMessages([]);
-    setHasEarlier(false);
-    hasLoadedEarlierRef.current = false;
-  }, []);
-
-  /** Takes the status returned alongside a freshly generated invitation. */
-  const updateStatus = setStatusInfo;
+  const { refetch: refetchStatus } = statusQuery;
+  const { refetch: refetchRecent } = recentQuery;
+  /** The error view's Retry. */
+  const retry = useCallback(() => {
+    void refetchStatus();
+    void refetchRecent();
+  }, [refetchStatus, refetchRecent]);
 
   return {
-    statusInfo,
+    statusInfo: statusQuery.data ?? null,
     messages,
-    hasEarlier,
+    hasEarlier: earlier ? earlier.hasMore : (recentQuery.data?.hasMore ?? false),
     loadState,
-    refresh,
     retry,
     loadEarlier,
-    appendSent,
-    clearMessages,
-    updateStatus,
+    /** After a successful delete (AC-22): the recent window is emptied in the cache. */
+    clearEarlier: () => setEarlier(null),
   };
 }
