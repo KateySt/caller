@@ -12,6 +12,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiExcludeController } from '@nestjs/swagger';
+import { fromUnixTime } from 'date-fns';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { timingSafeEqual } from 'node:crypto';
 import { UsersService } from '../../users/users.service.js';
 
@@ -161,7 +163,7 @@ function toE164(raw: string | undefined): string | undefined {
 
   const digits = raw.replace(/\D/g, '');
 
-  return digits.length > 0 ? `+${digits}` : undefined;
+  return digits.length > 0 ? (parsePhoneNumberFromString(`+${digits}`)?.number ?? `+${digits}`) : undefined;
 }
 
 function parseUnixSeconds(value: unknown): Date | undefined {
@@ -170,7 +172,7 @@ function parseUnixSeconds(value: unknown): Date | undefined {
     return undefined;
   }
 
-  return new Date(seconds * 1000);
+  return fromUnixTime(seconds);
 }
 
 /** Keeps third-party text from injecting newlines or control characters into the log. */

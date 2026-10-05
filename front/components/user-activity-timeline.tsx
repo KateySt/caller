@@ -1,4 +1,6 @@
+import { compareDesc } from "date-fns";
 import type { Call, SmsMessage, TelegramMessagePage, TelegramMessage, WhatsAppMessage } from "@/lib/api";
+import { formatDate, formatDurationSeconds } from "@/lib/date";
 
 interface UserActivityTimelineProps {
   calls: Call[] | null;
@@ -52,7 +54,7 @@ export function UserActivityTimeline({
         message,
       }),
     ),
-  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  ].sort((a, b) => compareDesc(a.timestamp, b.timestamp));
 
   const hasAnyFailure =
     calls === null || whatsappMessages === null || smsMessages === null || telegramPage === null;
@@ -105,7 +107,7 @@ function CallEntry({ call }: { call: Call }) {
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-medium">Call</span>
-        <span className="text-xs text-muted-foreground">{formatDateTime(call.startedAt)}</span>
+        <span className="text-xs text-muted-foreground">{formatDate(call.startedAt)}</span>
       </div>
 
       <p className={`text-sm ${call.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}>
@@ -113,7 +115,7 @@ function CallEntry({ call }: { call: Call }) {
       </p>
 
       {call.durationSeconds !== null && (
-        <p className="text-xs text-muted-foreground">Duration: {formatDuration(call.durationSeconds)}</p>
+        <p className="text-xs text-muted-foreground">Duration: {formatDurationSeconds(call.durationSeconds)}</p>
       )}
 
       {call.transcript.length > 0 && (
@@ -141,7 +143,7 @@ function MessageEntry({ channel, message }: { channel: "WhatsApp" | "SMS"; messa
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-medium">{channel}</span>
-        <span className="text-xs text-muted-foreground">{formatDateTime(message.createdAt)}</span>
+        <span className="text-xs text-muted-foreground">{formatDate(message.createdAt)}</span>
       </div>
 
       <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm whitespace-pre-wrap">{body}</p>
@@ -161,7 +163,7 @@ function TelegramEntry({ message }: { message: TelegramMessage }) {
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-medium">Telegram · {isInbound ? "Received" : "Sent by us"}</span>
-        <span className="text-xs text-muted-foreground">{formatDateTime(message.occurredAt)}</span>
+        <span className="text-xs text-muted-foreground">{formatDate(message.occurredAt)}</span>
       </div>
 
       {message.contentType === "text" ? (
@@ -199,15 +201,4 @@ function describeCallStatus(call: Call): string {
     default:
       return "Completed.";
   }
-}
-
-function formatDuration(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString();
 }

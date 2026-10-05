@@ -1,6 +1,7 @@
 import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { differenceInSeconds } from 'date-fns';
 import { Repository } from 'typeorm';
 import { AgentSettingsService } from '../agent-settings/agent-settings.service.js';
 import { isUniqueViolation } from '../common/postgres.util.js';
@@ -128,7 +129,7 @@ export class CallsService {
     }
 
     const endedAt = new Date();
-    const durationSeconds = Math.round((endedAt.getTime() - call.startedAt.getTime()) / 1000);
+    const durationSeconds = differenceInSeconds(endedAt, call.startedAt, { roundingMethod: 'round' });
 
     await this.callsRepository.update(callId, {
       status,

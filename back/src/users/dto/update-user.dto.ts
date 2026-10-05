@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
-import { E164_PATTERN } from './create-user.dto.js';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsPhoneNumberE164 } from '../../common/transforms/phone-number.js';
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'Ada Lovelace', maxLength: 255 })
@@ -14,9 +14,6 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional({ example: '+380501234567', description: 'Phone number in E.164 format' })
   @IsOptional()
-  @IsString()
-  @Matches(E164_PATTERN, {
-    message: 'phoneNumber must be in E.164 format, e.g. +380501234567',
-  })
+  @IsPhoneNumberE164()
   phoneNumber?: string;
 }

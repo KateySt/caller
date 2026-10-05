@@ -1,13 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { addDays } from 'date-fns';
 import { createHash, randomBytes } from 'node:crypto';
 import { DataSource, IsNull, MoreThan, Repository } from 'typeorm';
 import { isUniqueViolation } from '../common/postgres.util.js';
 import { TelegramLinkToken } from './entities/telegram-link-token.entity.js';
 import { TelegramLink } from './entities/telegram-link.entity.js';
 
-export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const INVITE_TTL_DAYS = 7;
 
 export type TelegramStatus = 'not_linked' | 'linked' | 'opted_out' | 'unreachable';
 
@@ -66,7 +67,7 @@ export class TelegramLinkService {
   async createInvite(userId: string): Promise<TelegramInvite> {
     // 32 random bytes → 43 chars of base64url (`A-Za-z0-9_-`), no personal data (AC-2).
     const token = randomBytes(32).toString('base64url');
-    const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+    const expiresAt = addDays(new Date(), INVITE_TTL_DAYS);
 
     await this.dataSource.transaction(async (manager) => {
       await manager.update(

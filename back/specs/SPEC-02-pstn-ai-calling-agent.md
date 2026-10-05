@@ -11,7 +11,7 @@ Cross-reference: the frontend "Call" action and Agent Settings page (not covered
 ## Goals / Non-goals
 
 - Goals:
-  - Place an outbound PSTN call to a `User`'s phone number, via a self-hosted LiveKit SIP integration backed by a SIP trunk provider (e.g. Twilio Elastic SIP Trunking — configurable/swappable, not hardcoded to one vendor).
+  - Place an outbound PSTN call to a `User`'s phone number, via LiveKit Cloud's managed SIP backed by a SIP trunk provider (e.g. Twilio Elastic SIP Trunking — configurable/swappable, not hardcoded to one vendor).
   - Hold a real-time voice conversation with the callee: transcribe their speech with a speech-to-text provider (Deepgram), generate the agent's replies with an LLM (Claude Haiku, model `claude-haiku-4-5-20251001`) conditioned on a single globally configured system prompt, and speak those replies with a text-to-speech provider (ElevenLabs).
   - A single global `AgentSettings` record (`systemPrompt`, `updatedAt`) that governs every call to every `User` — viewable and editable via API.
   - A `Call` record per call attempt (user reference, dialed phone number snapshot, status, end/failure reason, start/end timestamps, duration, full text transcript) that a client can poll for live status/transcript while the call is in progress, and review afterward.
@@ -92,7 +92,7 @@ Cross-reference: the frontend "Call" action and Agent Settings page (not covered
 
 - Every outbound call this feature makes to Deepgram, Claude/Anthropic, ElevenLabs, or the SIP trunk/provider must be bounded by a request timeout, so a stalled upstream fails the call (AC-20) rather than hanging it indefinitely.
 - The pipeline should keep callee-perceived response latency low enough to sustain a natural back-and-forth phone conversation; this spec does not fix a numeric latency target for v1.
-- A new `livekit-sip` service is added to the shared Docker Compose stack to bridge the SIP trunk and the LiveKit room. The SIP trunk vendor is configured via environment variables and is swappable for any standards-compliant SIP trunk provider (Twilio is the documented example) without changing this spec's behavior.
+- LiveKit Cloud's managed SIP bridges the SIP trunk and the LiveKit room (no self-hosted `livekit-sip` service). The SIP trunk vendor is configured via environment variables and is swappable for any standards-compliant SIP trunk provider (Twilio is the documented example) without changing this spec's behavior.
 
 ## Out of scope
 

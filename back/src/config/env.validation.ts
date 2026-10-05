@@ -87,7 +87,7 @@ class EnvironmentVariables {
   @IsOptional()
   WHATSAPP_FALLBACK_TEMPLATE_LANGUAGE: string = 'en_US';
 
-  // --- LiveKit (in-app voice; local self-hosted SFU by default) ---
+  // --- LiveKit (LiveKit Cloud project) ---
 
   @IsUrl({ protocols: ['ws', 'wss', 'http', 'https'], require_tld: false })
   LIVEKIT_URL: string;

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateTelegramInvite } from "@/hooks/use-telegram-mutations";
 import type { TelegramStatus, TelegramStatusInfo } from "@/lib/api";
+import { formatDate } from "@/lib/date";
 
 const STATUS_LABEL: Record<TelegramStatus, string> = {
   not_linked: "Not linked",
@@ -14,10 +15,6 @@ const STATUS_LABEL: Record<TelegramStatus, string> = {
   opted_out: "Opted out",
   unreachable: "Unreachable",
 };
-
-function formatTimestamp(isoTimestamp: string): string {
-  return new Date(isoTimestamp).toLocaleString();
-}
 
 interface TelegramInvitePanelProps {
   userId: string;
@@ -103,7 +100,7 @@ export function TelegramInvitePanel({ userId, statusInfo }: TelegramInvitePanelP
       {invite && (
         <div className="grid gap-2 rounded-lg border p-3">
           <label htmlFor={linkFieldId} className="text-sm font-medium">
-            Invitation link (expires {formatTimestamp(invite.expiresAt)})
+            Invitation link (expires {formatDate(invite.expiresAt)})
           </label>
           <div className="flex gap-2">
             <Input

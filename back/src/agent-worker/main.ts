@@ -117,9 +117,7 @@ export default defineAgent({
           voiceId: configService.getOrThrow<string>('ELEVENLABS_VOICE_ID'),
           model: configService.getOrThrow<string>('ELEVENLABS_MODEL'),
         }),
-        // No bundled VAD/turn-detector model (those call LiveKit's inference gateway, which
-        // this repo's self-hosted dev server has no Cloud project wired up for) — fall back
-        // to STT-driven endpointing instead.
+        // No bundled VAD/turn-detector model — fall back to STT-driven endpointing instead.
         vad: null,
         turnHandling: { turnDetection: 'stt' },
       });

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { E164_PATTERN, MAX_NAME_LENGTH } from "@/lib/api";
+import { isValidPhoneNumber, parsePhoneNumberFromString } from "libphonenumber-js";
+import { MAX_NAME_LENGTH } from "@/lib/api";
 import { requiredTrimmedText } from "@/lib/schemas/fields";
 
 /** Create/edit contact. The backend stays the authority (it owns the uniqueness check). */
@@ -12,7 +13,10 @@ export const userSchema = z.object({
   phoneNumber: z
     .string()
     .trim()
-    .regex(E164_PATTERN, "Use E.164 format, e.g. +380501234567."),
+    .refine((value) => value.startsWith("+") && isValidPhoneNumber(value), {
+      message: "Enter a valid international number, e.g. +380501234567.",
+    })
+    .transform((value) => parsePhoneNumberFromString(value)?.number ?? value),
 });
 
 export type UserFormInput = z.input<typeof userSchema>;

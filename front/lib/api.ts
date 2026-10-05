@@ -13,9 +13,6 @@ export const MAX_NAME_LENGTH = 255;
 
 export const MAX_SYSTEM_PROMPT_LENGTH = 8000;
 
-/** E.164, mirroring the backend's own rule: `+`, non-zero country digit, 6–14 more. */
-export const E164_PATTERN = /^\+[1-9]\d{6,14}$/;
-
 export interface User {
   id: string;
   name: string;

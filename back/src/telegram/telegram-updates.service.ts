@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { fromUnixTime } from 'date-fns';
 import type { Context } from 'grammy';
 import { TelegramLinkService } from './telegram-link.service.js';
 import { TelegramService } from './telegram.service.js';
@@ -220,7 +221,7 @@ export class TelegramUpdatesService implements OnApplicationShutdown {
         kind ?? 'other',
         null,
         message.message_id,
-        new Date(message.date * 1000),
+        fromUnixTime(message.date),
       );
     }
   }
@@ -248,7 +249,7 @@ export class TelegramUpdatesService implements OnApplicationShutdown {
       'text',
       text,
       message.message_id,
-      new Date(message.date * 1000),
+      fromUnixTime(message.date),
     );
   }
 

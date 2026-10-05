@@ -54,7 +54,7 @@ The API lives in `../back` (NestJS). It's not in this project's dependency tree 
 
 ## Calling
 
-`call-dialog.tsx` is a **live view**, not a calling client — it does not join any room itself. `POST /users/:id/calls` tells the backend to place a real outbound PSTN call (self-hosted LiveKit SIP + an AI voice agent own the actual call, in `back/`); the frontend only polls `GET /users/:id/calls/:callId` for status/transcript and renders it. There is no `livekit-client`/`@livekit/components-react` dependency here anymore — the previous in-app browser-to-browser demo call was retired when real calling shipped (`back/specs/SPEC-02-pstn-ai-calling-agent.md`, `front/specs/SPEC-02-pstn-call-and-agent-settings.md`).
+`call-dialog.tsx` is a **live view**, not a calling client — it does not join any room itself. `POST /users/:id/calls` tells the backend to place a real outbound PSTN call (LiveKit Cloud SIP + an AI voice agent own the actual call, in `back/`); the frontend only polls `GET /users/:id/calls/:callId` for status/transcript and renders it. There is no `livekit-client`/`@livekit/components-react` dependency here anymore — the previous in-app browser-to-browser demo call was retired when real calling shipped (`back/specs/SPEC-02-pstn-ai-calling-agent.md`, `front/specs/SPEC-02-pstn-call-and-agent-settings.md`).
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -1,6 +1,6 @@
 ---
 name: livekit-best-practices
-description: Current (Oct 2026) LiveKit best practices for this repo — access tokens & grants, server APIs via LiveKitAPI, webhook verification in NestJS, Next.js client connection, SIP telephony, the WhatsApp/Twilio Connectors, and the Cloud-vs-self-hosted capability split. Use whenever writing, reviewing, or planning code that touches LiveKit — token endpoints, rooms, participants, egress, SIP, connectors, agents, or `livekit-client`/`@livekit/components-react` in the frontend.
+description: Current (Oct 2026) LiveKit best practices for this repo — access tokens & grants, server APIs via LiveKitAPI, webhook verification in NestJS, Next.js client connection, SIP telephony, the WhatsApp/Twilio Connectors, and the Cloud-vs-self-hosted capability split (this repo uses LiveKit Cloud). Use whenever writing, reviewing, or planning code that touches LiveKit — token endpoints, rooms, participants, egress, SIP, connectors, agents, or `livekit-client`/`@livekit/components-react` in the frontend.
 license: MIT
 metadata:
   author: self
@@ -109,8 +109,8 @@ Notes verified from the packages:
 
 ### 2. Cloud vs Self-Hosted Capability Split (HIGH)
 
-This is the first thing to check for any new LiveKit feature — it has already redirected this
-repo's plan once (see `PLAN.md`).
+**This repo runs on LiveKit Cloud** (no local `livekit-server`/`livekit-sip` containers), so the
+Cloud column applies. The self-hosted column is kept for reference only.
 
 | Capability | Self-hosted `livekit-server` | LiveKit Cloud |
 |---|---|---|
@@ -124,9 +124,9 @@ repo's plan once (see `PLAN.md`).
 | Enhanced noise cancellation (Krisp) | ❌ | ✅ |
 | Multi-region | ✅ possible, via shared Redis (`/transport/self-hosting/distributed`) | ✅ built in |
 
-Consequence for this repo: in-app voice (browser ↔ browser) works fine on the local Docker
-`livekit-server`. A real WhatsApp call needs a LiveKit Cloud project. A plain phone call needs
-`livekit-sip` + a SIP trunk. Don't design a feature that silently assumes Cloud.
+Consequence for this repo: in-app voice, PSTN calls (Cloud-managed SIP + an outbound trunk
+created in the project) and WhatsApp Connectors are all available. Some Cloud features must be
+enabled per project (e.g. WhatsApp).
 
 ### 3. Access Tokens & Grants (HIGH)
 
@@ -280,8 +280,8 @@ const session = useSession(tokenSource);
 
 ### 7. Telephony: SIP & Connectors (MEDIUM-HIGH)
 
-**SIP (real phone calls, works self-hosted).** Needs the separate `livekit-sip` service plus a
-trunk provider.
+**SIP (real phone calls).** On LiveKit Cloud, SIP is managed — create an outbound trunk in the
+project and use a trunk provider (Twilio/Telnyx/Plivo/Sinch). No `livekit-sip` service to run.
 
 ```ts
 await api.sip.createSipParticipant(trunkId, '+15551234567', roomName, {
@@ -366,10 +366,9 @@ await api.sip.createSipParticipant(trunkId, '+15551234567', roomName, {
 
 ### 11. Ops & Observability (MEDIUM)
 
-- Self-hosted needs UDP ports open and the public IP configured correctly — the #1 cause of
-  "connects then no media." See `https://docs.livekit.io/transport/self-hosting/ports-firewall`.
-- Local Docker `livekit-server` is for development. Treat `--dev` mode keys (`devkey`/`secret`)
-  as development-only and keep them out of `.env.example` as anything but placeholders.
+- Keep real Cloud API keys out of `.env.example` and git — placeholders only.
+- (Only if ever self-hosting) UDP ports must be open and the public IP configured — the #1 cause
+  of "connects then no media." See `https://docs.livekit.io/transport/self-hosting/ports-firewall`.
 - Webhook endpoints are public and unauthenticated by session — rate-limit them
   (`@nestjs/throttler`) alongside signature verification.
 - Log `roomName` and participant `identity` on LiveKit operations for correlation, and remember
@@ -392,7 +391,7 @@ await api.sip.createSipParticipant(trunkId, '+15551234567', roomName, {
 - ❌ No `<RoomAudioRenderer />` → silent call that looks connected.
 - ❌ No `disconnect()` on unmount → ghost participants under Fast Refresh.
 - ❌ A `LiveKitAPI` call with no `requestTimeout`.
-- ❌ Planning a Connector (WhatsApp/Twilio) feature against self-hosted LiveKit — Cloud only.
+- ❌ Reintroducing self-hosted `livekit-server`/`livekit-sip` assumptions (`livekit.yaml`, `devkey`, `ws://localhost:7880`).
 - ❌ Using the npm name `@livekit/server-sdk` (doesn't exist) instead of `livekit-server-sdk`.
 
 ## Project-Specific Notes (`caller`)

@@ -4,10 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { TelegramMessage } from "@/lib/api";
-
-function formatTimestamp(isoTimestamp: string): string {
-  return new Date(isoTimestamp).toLocaleString();
-}
+import { formatDate } from "@/lib/date";
 
 interface TelegramConversationLogProps {
   messages: TelegramMessage[];
@@ -105,7 +102,7 @@ function MessageBubble({ message }: { message: TelegramMessage }) {
         }
       >
         <p className="text-xs font-medium text-muted-foreground">
-          {isInbound ? "Client" : "Bot"} · {formatTimestamp(message.occurredAt)}
+          {isInbound ? "Client" : "Bot"} · {formatDate(message.occurredAt)}
         </p>
         {message.text !== null ? (
           <p className="whitespace-pre-wrap break-words">{message.text}</p>

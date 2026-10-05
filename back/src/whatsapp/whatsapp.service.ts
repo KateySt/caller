@@ -1,6 +1,7 @@
 import { BadGatewayException, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { addHours, isBefore } from 'date-fns';
 import { Repository } from 'typeorm';
 import { WhatsAppMessage } from './entities/whatsapp-message.entity.js';
 
@@ -23,7 +24,7 @@ export interface SendTextMessageResult {
 
 const GRAPH_BASE_URL = 'https://graph.facebook.com';
 /** WhatsApp only allows free-form replies within 24h of the contact's last inbound message. */
-const SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
+const SESSION_WINDOW_HOURS = 24;
 const REQUEST_TIMEOUT_MS = 10_000;
 
 /**
@@ -67,7 +68,7 @@ export class WhatsAppService {
       return false;
     }
 
-    return now.getTime() - lastInboundMessageAt.getTime() < SESSION_WINDOW_MS;
+    return isBefore(now, addHours(lastInboundMessageAt, SESSION_WINDOW_HOURS));
   }
 
   /**

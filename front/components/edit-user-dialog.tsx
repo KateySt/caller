@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { FormField } from "@/components/form-field";
 import { useUpdateUser } from "@/hooks/use-user-mutations";
 import type { User } from "@/lib/api";
@@ -33,6 +34,7 @@ export function EditUserDialog({ user, triggerId, onClose }: EditUserDialogProps
   const updateUser = useUpdateUser(user.id);
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<UserFormInput, unknown, UserFormValues>({
@@ -81,13 +83,21 @@ export function EditUserDialog({ user, triggerId, onClose }: EditUserDialogProps
 
           <FormField label="Phone number" error={errors.phoneNumber?.message}>
             {(controlProps) => (
-              <Input
-                {...controlProps}
-                {...register("phoneNumber")}
-                type="tel"
-                inputMode="tel"
-                disabled={isSubmitting}
-                placeholder="+380501234567"
+              <Controller
+                control={control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <PhoneInput
+                    {...controlProps}
+                    name={field.name}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    defaultCountry="UA"
+                    disabled={isSubmitting}
+                    placeholder="050 123 45 67"
+                  />
+                )}
               />
             )}
           </FormField>

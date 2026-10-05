@@ -4,7 +4,7 @@
 
 WhatsApp messaging (`back/specs/SPEC-01-whatsapp-messaging.md`) only reaches contacts who have WhatsApp and is subject to Meta's 24-hour session/template rules. Staff also need a plain SMS channel to the same contacts, sent through a dedicated SMS provider, independent of WhatsApp's constraints and account. This spec covers sending a text message over SMS to an existing `User` and logging that send so it can appear in that `User`'s activity history.
 
-Cross-reference: the frontend "SMS" action (not covered here) consumes the `POST /users/:id/sms-messages` and `GET /users/:id/sms-messages` contracts defined in this spec; see `front/specs/SPEC-01-users-messaging.md`. The `User.phoneNumber` sent to here is owned by `back/specs/SPEC-01-whatsapp-messaging.md`.
+Cross-reference: the frontend "SMS" action (not covered here) consumes the `POST /users/:id/sms-messages` and `GET /users/:id/sms-messages` contracts defined in this spec; see `front/specs/SPEC-01-users-messaging.md`. The `User.phoneNumber` sent to here is owned by `back/specs/SPEC-01-whatsapp-messaging.md`. Platform facts (A2P 10DLC/toll-free compliance, status callbacks, webhook signatures, opt-out, error codes) are in `.claude/skills/twilio-sms-best-practices/SKILL.md`.
 
 ## Goals / Non-goals
 
