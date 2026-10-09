@@ -30,7 +30,7 @@ async function createApp(): Promise<NestExpressApplication> {
 
   app.use(helmet());
   app.enableCors({
-    origin: configService.get<string>('CORS_ORIGIN'),
+    origin: parseCorsOrigins(configService.get<string>('CORS_ORIGIN')),
     credentials: true,
   });
 
@@ -54,6 +54,18 @@ async function createApp(): Promise<NestExpressApplication> {
   SwaggerModule.setup('docs', app, document);
 
   return app;
+}
+
+/**
+ * `CORS_ORIGIN` may list several origins, comma-separated. A browser's `Origin` header never
+ * has a trailing slash, so one copied from the address bar (`https://x.vercel.app/`) would
+ * silently never match — strip it.
+ */
+function parseCorsOrigins(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
 }
 
 /** Long-running server (local dev, any VM/container host). */
