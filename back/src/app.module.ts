@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+// Static import so Vercel's file tracing bundles `pg`: TypeORM otherwise loads it with a
+// runtime `require('pg')` the tracer can't see, and the function crashes on boot.
+import pg from 'pg';
 import { AgentSettingsModule } from './agent-settings/agent-settings.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -21,6 +24,7 @@ import { WhatsAppWebhookModule } from './whatsapp/webhook/whatsapp-webhook.modul
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres' as const,
+        driver: pg,
         host: configService.getOrThrow<string>('DATABASE_HOST'),
         port: configService.getOrThrow<number>('DATABASE_PORT'),
         username: configService.getOrThrow<string>('DATABASE_USER'),
