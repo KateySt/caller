@@ -1,8 +1,9 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RequestHandler } from 'express';
 import helmetImport, { type HelmetOptions } from 'helmet';
 import { AppModule } from './app.module.js';
@@ -16,7 +17,8 @@ const helmet = ((helmetImport as unknown as { default?: unknown }).default ?? he
   options?: HelmetOptions,
 ) => RequestHandler;
 
-async function bootstrap() {
+/** Builds the fully configured app without binding a port — shared by both entry modes below. */
+async function createApp(): Promise<NestExpressApplication> {
   // `rawBody` keeps the untouched request bytes around: LiveKit signs its webhooks over
   // them, and verifying against the parsed object would always fail.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
@@ -51,11 +53,53 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
 
-  const port = configService.get<number>('PORT') ?? 3001;
+  return app;
+}
+
+/** Long-running server (local dev, any VM/container host). */
+async function bootstrap(): Promise<void> {
+  const app = await createApp();
+  const port = app.get(ConfigService).get<number>('PORT') ?? 3001;
   await app.listen(port);
 
   // Not a lifecycle hook: only the HTTP server may poll Telegram, not every AppModule consumer (e.g. e2e tests).
   await app.get(TelegramUpdatesService).start();
 }
 
-await bootstrap();
+/**
+ * Vercel (serverless). Its runtime patches `http.Server.listen` so the listen callback never
+ * fires — `app.listen()` would hang the function until it times out. Instead this module
+ * exports a request handler; Nest is initialised once per instance and reused across requests.
+ */
+let vercelApp: Promise<RequestHandler> | undefined;
+
+async function initVercelApp(): Promise<RequestHandler> {
+  const app = await createApp();
+  await app.init();
+
+  const telegram = app.get(TelegramUpdatesService);
+  if (telegram.isWebhookMode) {
+    await telegram.start();
+  } else {
+    // A function instance can't hold a long-poll open between requests.
+    new Logger('Bootstrap').warn('TELEGRAM_WEBHOOK_URL is not set: Telegram updates are disabled on Vercel');
+  }
+
+  return app.getHttpAdapter().getInstance() as RequestHandler;
+}
+
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  vercelApp ??= initVercelApp().catch((error: unknown) => {
+    vercelApp = undefined; // let the next request retry instead of caching the failure
+    throw error;
+  });
+  const expressApp = await vercelApp;
+  expressApp(req as Parameters<RequestHandler>[0], res as Parameters<RequestHandler>[1], () => undefined);
+}
+
+if (!process.env.VERCEL) {
+  bootstrap().catch((error: unknown) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

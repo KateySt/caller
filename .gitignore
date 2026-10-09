@@ -1,1 +1,4 @@
 /.idea/
+# Vercel CLI (vercel link / pull / build)
+.vercel
+/.env*.local
