@@ -1,5 +1,6 @@
 import { Transform, Type, plainToInstance } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -9,6 +10,7 @@ import {
   Matches,
   Max,
   Min,
+  MinLength,
   ValidateIf,
   validateSync,
 } from 'class-validator';
@@ -61,6 +63,12 @@ class EnvironmentVariables {
   @IsOptional()
   DATABASE_NAME: string = 'caller';
 
+  /** `true` for hosted Postgres that requires TLS (e.g. Neon); local docker-compose Postgres has none. */
+  @Transform(({ value }) => (typeof value === 'string' ? value.toLowerCase() === 'true' : value))
+  @IsBoolean()
+  @IsOptional()
+  DATABASE_SSL: boolean = false;
+
   // --- WhatsApp Cloud API (SPEC-01 AC-23..AC-25) ---
 
   @IsString()
@@ -107,7 +115,7 @@ class EnvironmentVariables {
   @IsNotEmpty()
   LIVEKIT_SIP_TRUNK_ID: string;
 
-  /** Explicit agent-dispatch name; must match the worker's `ServerOptions.agentName`. */
+  /** Explicit agent-dispatch name; must match `AGENT_NAME` in `agent/src/main.ts`. */
   @IsString()
   @IsOptional()
   LIVEKIT_AGENT_NAME: string = 'caller-voice-agent';
@@ -118,35 +126,10 @@ class EnvironmentVariables {
   @IsOptional()
   CALL_MAX_DURATION_SECONDS: number = 600;
 
+  /** Shared secret the voice agent (`agent/`) sends to `/api/internal/calls`; same value as its secret. */
   @IsString()
-  @IsNotEmpty()
-  DEEPGRAM_API_KEY: string;
-
-  /** Tuned for phone-call audio; see @livekit/agents-plugin-deepgram's STTModels. */
-  @IsString()
-  @IsOptional()
-  DEEPGRAM_MODEL: string = 'nova-2-phonecall';
-
-  @IsString()
-  @IsNotEmpty()
-  ANTHROPIC_API_KEY: string;
-
-  @IsString()
-  @IsOptional()
-  ANTHROPIC_MODEL: string = 'claude-haiku-4-5-20251001';
-
-  @IsString()
-  @IsNotEmpty()
-  ELEVENLABS_API_KEY: string;
-
-  @IsString()
-  @IsNotEmpty()
-  ELEVENLABS_VOICE_ID: string;
-
-  /** Low-latency conversational model; see @livekit/agents-plugin-elevenlabs's TTSModels. */
-  @IsString()
-  @IsOptional()
-  ELEVENLABS_MODEL: string = 'eleven_turbo_v2_5';
+  @MinLength(32)
+  AGENT_INTERNAL_TOKEN: string;
 
   // --- SMS (SPEC-03 AC-8) ---
 

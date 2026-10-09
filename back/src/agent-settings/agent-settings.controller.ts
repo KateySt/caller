@@ -8,7 +8,7 @@ import { UpdateAgentSettingsDto } from './dto/update-agent-settings.dto.js';
 @Controller('agent-settings')
 export class AgentSettingsController {
   // Explicit @Inject: see AppController's constructor comment — this whole module tree
-  // also runs under `tsx` (agent-worker), which doesn't emit DI-reflection metadata.
+  // also runs under Vitest (esbuild), which doesn't emit DI-reflection metadata.
   constructor(
     @Inject(AgentSettingsService) private readonly agentSettingsService: AgentSettingsService,
   ) {}

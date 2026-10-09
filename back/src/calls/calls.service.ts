@@ -17,7 +17,7 @@ import {
 /**
  * Owns the full lifecycle of a PSTN call (SPEC-02): placing it, the race-safe one-call-per-user
  * lock (AC-8), the background dial + agent dispatch, the hard max-duration backstop (AC-17,
- * AC-23), and the transcript/status writes the agent worker process makes as the call runs.
+ * AC-23), and the transcript/status writes the voice agent (`agent/`) makes through `InternalCallsController`.
  */
 @Injectable()
 export class CallsService {
@@ -28,7 +28,7 @@ export class CallsService {
   private readonly maxDurationSeconds: number;
 
   // Explicit @Inject: see AppController's constructor comment — this whole module tree
-  // also runs under `tsx` (agent-worker), which doesn't emit DI-reflection metadata.
+  // also runs under Vitest (esbuild), which doesn't emit DI-reflection metadata.
   constructor(
     @Inject(ConfigService) configService: ConfigService,
     @InjectRepository(Call)
@@ -103,16 +103,20 @@ export class CallsService {
     return call;
   }
 
-  /** Used by the agent worker process to look up the call it was dispatched for. */
+  /** Used by the voice agent (via the internal API) to look up the call it was dispatched for. */
   findOne(callId: string): Promise<Call | null> {
     return this.callsRepository.findOne({ where: { id: callId } });
   }
 
-  /** AC-12/AC-13: appends one transcript turn as the conversation happens. */
-  async appendTranscriptTurn(callId: string, turn: CallTranscriptTurn): Promise<void> {
+  /**
+   * AC-12/AC-13: appends one transcript turn as the conversation happens. Idempotent per
+   * `seq` — the agent retries over the network, so a turn may arrive more than once.
+   */
+  async appendTranscriptTurn(callId: string, turn: Required<CallTranscriptTurn>): Promise<void> {
     await this.callsRepository.query(
-      `UPDATE "call" SET "transcript" = "transcript" || $1::jsonb WHERE "id" = $2`,
-      [JSON.stringify([turn]), callId],
+      `UPDATE "call" SET "transcript" = "transcript" || $1::jsonb
+       WHERE "id" = $2 AND NOT "transcript" @> $3::jsonb`,
+      [JSON.stringify([turn]), callId, JSON.stringify([{ seq: turn.seq }])],
     );
   }
 
@@ -156,7 +160,7 @@ export class CallsService {
   /**
    * Room -> agent dispatch -> dial. Runs detached from the HTTP request (see `placeCall`).
    * A dial failure (AC-19) and the max-duration backstop (AC-17) are both handled here;
-   * everything that happens once the callee has picked up is the agent worker's job.
+   * everything that happens once the callee has picked up is the voice agent's job.
    */
   private async startCall(call: Call): Promise<void> {
     const roomName = call.roomName;
@@ -182,7 +186,7 @@ export class CallsService {
     }
 
     // AC-17/AC-23: hard backstop even if the agent/callee never end the call themselves.
-    // The agent worker and the callee hangup path both race this via `markEnded`'s
+    // The voice agent and the callee hangup path both race this via `markEnded`'s
     // in_progress guard — whichever observes the end first wins (edge case).
     setTimeout(() => {
       void this.markCompleted(call.id, 'max_duration_reached');

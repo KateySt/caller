@@ -67,7 +67,7 @@ export class TelegramUpdatesService implements OnApplicationShutdown {
 
   /**
    * Called from `main.ts` after the HTTP server is up — not from a lifecycle hook, because
-   * the agent worker reuses `AppModule` and must never poll or register a webhook.
+   * only the HTTP server may poll or register a webhook, not every `AppModule` consumer.
    * A bad/revoked token is logged and does not stop the API (spec edge case).
    */
   async start(): Promise<void> {

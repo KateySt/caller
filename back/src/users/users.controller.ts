@@ -38,7 +38,7 @@ import { UsersService } from './users.service.js';
 @Controller('users')
 export class UsersController {
   // Explicit @Inject: see AppController's constructor comment — this whole module tree
-  // also runs under `tsx` (agent-worker), which doesn't emit DI-reflection metadata.
+  // also runs under Vitest (esbuild), which doesn't emit DI-reflection metadata.
   constructor(
     @Inject(UsersService) private readonly usersService: UsersService,
     @Inject(WhatsAppService) private readonly whatsAppService: WhatsAppService,

@@ -42,7 +42,7 @@ export class WhatsAppService {
   private readonly fallbackTemplateLanguage: string;
 
   // Explicit @Inject: see AppController's constructor comment — this whole module tree
-  // also runs under `tsx` (agent-worker), which doesn't emit DI-reflection metadata.
+  // also runs under Vitest (esbuild), which doesn't emit DI-reflection metadata.
   constructor(
     @Inject(ConfigService) configService: ConfigService,
     @InjectRepository(WhatsAppMessage)

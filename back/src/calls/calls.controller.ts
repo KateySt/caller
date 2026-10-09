@@ -7,7 +7,7 @@ import { CallResponseDto } from './dto/call-response.dto.js';
 @Controller('users/:id/calls')
 export class CallsController {
   // Explicit @Inject: see AppController's constructor comment — this whole module tree
-  // also runs under `tsx` (agent-worker), which doesn't emit DI-reflection metadata.
+  // also runs under Vitest (esbuild), which doesn't emit DI-reflection metadata.
   constructor(@Inject(CallsService) private readonly callsService: CallsService) {}
 
   @Post()

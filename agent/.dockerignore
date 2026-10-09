@@ -1,0 +1,29 @@
+# Dependencies and build outputs (rebuilt inside the image)
+node_modules
+dist/
+coverage/
+
+# Logs and temp files
+*.log
+.tmp
+.cache
+
+# Environment variables — secrets go through `lk agent update-secrets`, never the image
+.env
+.env.*
+
+# VCS, editor, OS
+.git
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+
+# Docs and coding-agent files
+README.md
+AGENTS.md
+CLAUDE.md
+.claude/
+
+# LiveKit CLI config
+livekit.toml

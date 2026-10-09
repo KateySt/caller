@@ -4,8 +4,8 @@ import { AppService } from './app.service.js';
 @Controller()
 export class AppController {
   // Explicit @Inject: NestJS's implicit constructor-param DI relies on TypeScript's
-  // emitted `design:paramtypes` metadata, which `tsx` (used by `src/agent-worker/main.ts`
-  // to run this module tree outside `nest build`) does not produce.
+  // emitted `design:paramtypes` metadata, which esbuild-based runners (Vitest, `tsx`) that
+  // load this module tree outside `nest build` do not produce.
   constructor(@Inject(AppService) private readonly appService: AppService) {}
 
   @Get()

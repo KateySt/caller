@@ -10,7 +10,7 @@ import {
   Body,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { constantTimeEquals } from '../common/crypto.util.js';
 import { TelegramUpdatesService } from './telegram-updates.service.js';
 
 /** Telegram's webhook endpoint (`/api/telegram/webhook`), SPEC-04 AC-33 / AC-34. */
@@ -36,11 +36,4 @@ export class TelegramWebhookController {
     // AC-34: acknowledge now; slow work must not make Telegram redeliver the update.
     void this.updates.handleWebhookUpdate(update);
   }
-}
-
-/** Hashing first gives equal-length buffers, so the comparison is constant-time overall. */
-function constantTimeEquals(a: string, b: string): boolean {
-  const digest = (value: string) => createHash('sha256').update(value).digest();
-
-  return timingSafeEqual(digest(a), digest(b));
 }

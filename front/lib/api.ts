@@ -83,7 +83,11 @@ export interface AgentSettings {
 }
 
 export type CallStatus = "in_progress" | "completed" | "failed";
-export type CallEndReason = "agent_completed" | "callee_hangup" | "max_duration_reached";
+export type CallEndReason =
+  | "agent_completed"
+  | "callee_hangup"
+  | "callee_unresponsive"
+  | "max_duration_reached";
 
 export interface CallTranscriptTurn {
   role: "callee" | "agent";

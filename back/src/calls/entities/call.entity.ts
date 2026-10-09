@@ -1,13 +1,19 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 export type CallStatus = 'in_progress' | 'completed' | 'failed';
-export type CallEndReason = 'agent_completed' | 'callee_hangup' | 'max_duration_reached';
+export type CallEndReason =
+  | 'agent_completed'
+  | 'callee_hangup'
+  | 'callee_unresponsive'
+  | 'max_duration_reached';
 
 export interface CallTranscriptTurn {
   role: 'callee' | 'agent';
   text: string;
   /** ISO 8601 timestamp. */
   at: string;
+  /** Agent-side turn counter used to dedupe retried appends; absent on turns written before it existed. */
+  seq?: number;
 }
 
 /** Deterministic LiveKit room name for a call — shared by the dial, the agent dispatch, and the webhook/worker lookup. */

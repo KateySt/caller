@@ -23,7 +23,7 @@ export class CallResponseDto {
   @ApiProperty({ enum: ['in_progress', 'completed', 'failed'] })
   status: CallStatus;
 
-  @ApiProperty({ enum: ['agent_completed', 'callee_hangup', 'max_duration_reached'], nullable: true })
+  @ApiProperty({ enum: ['agent_completed', 'callee_hangup', 'callee_unresponsive', 'max_duration_reached'], nullable: true })
   endReason: CallEndReason | null;
 
   @ApiProperty({ nullable: true })
@@ -48,7 +48,7 @@ export class CallResponseDto {
       status: call.status,
       endReason: call.endReason,
       failureReason: call.failureReason,
-      transcript: call.transcript,
+      transcript: call.transcript.map(({ role, text, at }) => ({ role, text, at })),
       startedAt: call.startedAt,
       endedAt: call.endedAt,
       durationSeconds: call.durationSeconds,

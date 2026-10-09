@@ -91,6 +91,8 @@ function describeCallStatus(call: Call): string {
       return "Call completed — the agent ended the conversation.";
     case "callee_hangup":
       return "Call completed — the contact hung up.";
+    case "callee_unresponsive":
+      return "Call completed — the contact stopped responding.";
     case "max_duration_reached":
       return "Call completed — the maximum call duration was reached.";
     default:

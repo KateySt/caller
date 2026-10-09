@@ -46,7 +46,7 @@ async function bootstrap() {
   const port = configService.get<number>('PORT') ?? 3001;
   await app.listen(port);
 
-  // Not a lifecycle hook: the agent worker reuses AppModule and must not poll Telegram.
+  // Not a lifecycle hook: only the HTTP server may poll Telegram, not every AppModule consumer (e.g. e2e tests).
   await app.get(TelegramUpdatesService).start();
 }
 

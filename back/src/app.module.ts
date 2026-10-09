@@ -26,6 +26,7 @@ import { WhatsAppWebhookModule } from './whatsapp/webhook/whatsapp-webhook.modul
         username: configService.getOrThrow<string>('DATABASE_USER'),
         password: configService.getOrThrow<string>('DATABASE_PASSWORD'),
         database: configService.getOrThrow<string>('DATABASE_NAME'),
+        ssl: configService.get<boolean>('DATABASE_SSL') ?? false,
         autoLoadEntities: true,
         synchronize: false,
       }),

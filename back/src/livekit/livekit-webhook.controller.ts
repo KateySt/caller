@@ -26,7 +26,7 @@ export class LiveKitWebhookController {
   private readonly logger = new Logger(LiveKitWebhookController.name);
 
   // Explicit @Inject: see AppController's constructor comment — this whole module tree
-  // also runs under `tsx` (agent-worker), which doesn't emit DI-reflection metadata.
+  // also runs under Vitest (esbuild), which doesn't emit DI-reflection metadata.
   constructor(@Inject(LiveKitService) private readonly liveKitService: LiveKitService) {}
 
   @Post()

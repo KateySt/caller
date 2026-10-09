@@ -1,0 +1,30 @@
+{
+  "name": "agent",
+  "version": "0.0.1",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts dev",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js start",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@livekit/agents": "^1.9.1",
+    "@livekit/agents-plugin-anthropic": "^1.9.1",
+    "@livekit/agents-plugin-deepgram": "^1.9.1",
+    "@livekit/agents-plugin-elevenlabs": "^1.9.1",
+    "@livekit/rtc-node": "^1.1.0",
+    "dotenv": "^18.0.6",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}

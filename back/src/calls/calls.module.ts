@@ -6,10 +6,11 @@ import { UsersModule } from '../users/users.module.js';
 import { CallsController } from './calls.controller.js';
 import { CallsService } from './calls.service.js';
 import { Call } from './entities/call.entity.js';
+import { InternalCallsController } from './internal/internal-calls.controller.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Call]), UsersModule, AgentSettingsModule, LiveKitModule],
-  controllers: [CallsController],
+  controllers: [CallsController, InternalCallsController],
   providers: [CallsService],
   exports: [CallsService],
 })

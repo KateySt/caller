@@ -21,7 +21,7 @@ export class LiveKitService {
   private readonly webhookReceiver: WebhookReceiver;
 
   // Explicit @Inject: see AppController's constructor comment — this whole module tree
-  // also runs under `tsx` (agent-worker), which doesn't emit DI-reflection metadata.
+  // also runs under Vitest (esbuild), which doesn't emit DI-reflection metadata.
   constructor(@Inject(ConfigService) configService: ConfigService) {
     const serverUrl = configService.getOrThrow<string>('LIVEKIT_URL');
     const apiKey = configService.getOrThrow<string>('LIVEKIT_API_KEY');
