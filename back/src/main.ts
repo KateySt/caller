@@ -3,10 +3,18 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import helmet from 'helmet';
+import type { RequestHandler } from 'express';
+import helmetImport, { type HelmetOptions } from 'helmet';
 import { AppModule } from './app.module.js';
 import { TelegramUpdatesService } from './telegram/telegram-updates.service.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
+
+// helmet ships separate ESM/CJS typings. Vercel's NestJS builder type-checks against the CJS
+// ones, where the default import is the module namespace instead of the function (TS2349),
+// so unwrap `.default` when present — correct at runtime under either module format.
+const helmet = ((helmetImport as unknown as { default?: unknown }).default ?? helmetImport) as (
+  options?: HelmetOptions,
+) => RequestHandler;
 
 async function bootstrap() {
   // `rawBody` keeps the untouched request bytes around: LiveKit signs its webhooks over
