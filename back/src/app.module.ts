@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 // runtime `require('pg')` the tracer can't see, and the function crashes on boot.
 import pg from 'pg';
 import { AgentSettingsModule } from './agent-settings/agent-settings.module.js';
+import { AgentTestsModule } from './agent-tests/agent-tests.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { CallsModule } from './calls/calls.module.js';
@@ -40,6 +41,7 @@ import { WhatsAppWebhookModule } from './whatsapp/webhook/whatsapp-webhook.modul
     LiveKitModule,
     AgentSettingsModule,
     CallsModule,
+    AgentTestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
