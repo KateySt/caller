@@ -6,6 +6,7 @@ import {
   type TrackReferenceOrPlaceholder,
   useMaybeRoomContext,
   useMediaDeviceSelect,
+  useMultibandTrackVolume,
 } from '@livekit/components-react';
 import { AgentAudioVisualizerBar } from '@/components/agent-audio-visualizer-bar';
 import { AgentTrackToggle } from '@/components/agent-track-toggle';
@@ -22,6 +23,7 @@ import { cn } from '@/lib/utils';
 const selectVariants = cva(
   [
     'rounded-l-none shadow-none pl-2 ',
+    'data-[size=default]:h-9',
     'text-foreground hover:text-muted-foreground',
     'peer-data-[state=on]/track:bg-muted peer-data-[state=on]/track:hover:bg-foreground/10',
     'peer-data-[state=off]/track:text-destructive',
@@ -67,6 +69,17 @@ const selectVariants = cva(
     },
   },
 );
+
+const MIC_BAR_COUNT = 3;
+// `useMultibandTrackVolume` maps dB through a square root, so room noise and echo of the agent
+// already read as ~0.2–0.4. Treat everything below the floor as silence and stretch the rest,
+// so the bars stay still on background noise and reach full height on normal speech.
+const MIC_NOISE_FLOOR = 0.3;
+const MIC_FULL_SCALE = 0.75;
+
+function gateMicVolume(band: number): number {
+  return Math.min(1, Math.max(0, (band - MIC_NOISE_FLOOR) / (MIC_FULL_SCALE - MIC_NOISE_FLOOR)));
+}
 
 /**
  * Props for the TrackDeviceSelect component. */
@@ -290,6 +303,13 @@ export function AgentTrackControl({
   const noDevices = Boolean(kind) && requestPermissionsState && filteredDevices.length === 0;
   const resolvedPressed = pressed && !noDevices;
 
+  const rawMicVolume = useMultibandTrackVolume(resolvedPressed ? audioTrack : undefined, {
+    bands: MIC_BAR_COUNT,
+    loPass: 100,
+    hiPass: 200,
+  });
+  const micVolume = useMemo(() => rawMicVolume.map(gateMicVolume), [rawMicVolume]);
+
   return (
     <div
       className={cn(
@@ -310,14 +330,15 @@ export function AgentTrackControl({
         {audioTrack && (
           <AgentAudioVisualizerBar
             size="icon"
-            barCount={3}
+            barCount={MIC_BAR_COUNT}
             state={resolvedPressed ? 'speaking' : 'disconnected'}
-            audioTrack={resolvedPressed ? audioTrack : undefined}
-            className="audiovisualizer flex h-6 w-auto items-center justify-center gap-0.5"
+            volumeBands={micVolume}
+            className="audiovisualizer flex h-4 w-auto items-center justify-center gap-[3px]"
           >
             <span
               className={cn([
-                'h-full min-h-0.5 w-0.5 origin-center',
+                'h-full min-h-[3px] w-[3px] origin-center rounded-full',
+                'transition-[height] duration-150 ease-out',
                 'group-data-[state=on]/track:bg-foreground group-data-[state=off]/track:bg-destructive',
                 'data-lk-muted:bg-muted',
               ])}

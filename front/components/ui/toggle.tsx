@@ -30,12 +30,19 @@ function Toggle({
   className,
   variant = "default",
   size = "default",
+  render,
   ...props
 }: TogglePrimitive.Props & VariantProps<typeof toggleVariants>) {
   return (
     <TogglePrimitive
       data-slot="toggle"
       className={cn(toggleVariants({ variant, size, className }))}
+      render={
+        render ??
+        ((buttonProps, state) => (
+          <button {...buttonProps} data-state={state.pressed ? "on" : "off"} />
+        ))
+      }
       {...props}
     />
   )
