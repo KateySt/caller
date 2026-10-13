@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { href: string; label: string; matchPrefix?: boolean }[] = [
   { href: "/", label: "Agent Settings" },
   { href: "/users", label: "Users" },
+  { href: "/agent-tests", label: "Agent Tests", matchPrefix: true },
 ];
 
 export function SiteHeader() {
@@ -16,7 +17,9 @@ export function SiteHeader() {
     <header className="border-b">
       <nav className="mx-auto flex w-full max-w-2xl items-center gap-4 px-6 py-4">
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = item.matchPrefix
+            ? pathname === item.href || pathname.startsWith(`${item.href}/`)
+            : pathname === item.href;
 
           return (
             <Link

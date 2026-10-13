@@ -64,7 +64,7 @@ export class AgentTestSession {
   @Column({ type: 'jsonb', default: () => "'[]'" })
   transcript: AgentTestTranscriptTurn[];
 
-  /** The LiveKit room this session runs in — see `testRoomName`. Null until set right after insert. */
+  /** The LiveKit room this session runs in — see `testRoomName`. Set in the initial insert (nullable for legacy rows). */
   @Column({ type: 'varchar', length: 64, nullable: true })
   roomName: string | null;
 

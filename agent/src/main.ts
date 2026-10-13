@@ -116,7 +116,9 @@ export default defineAgent({
 
       // AC-19/20 backstop: the backend already marks the call failed and tears the room
       // down when the SIP dial itself never connects, which disconnects this job too — this
-      // timeout only guards the (should-not-happen) case where that never arrives.
+      // timeout only guards the (should-not-happen) case where that never arrives. In a test
+      // session (SPEC-06) it also guards an admin who never joins the room (e.g. the browser
+      // never connects or the mic prompt is abandoned).
       await withTimeout(
         ctx.waitForParticipant(),
         PARTICIPANT_JOIN_TIMEOUT_MS,
@@ -199,7 +201,7 @@ export default defineAgent({
       session.on(AgentSessionEventTypes.Close, (ev) => {
         clearTimeout(silenceTimer);
         if (ev.error) {
-          finalize({ status: 'failed', failureReason: `Pipeline error: ${describeError(ev.error)}` });
+          finalize({ status: 'failed', failureReason: describePipelineError(ev.error) });
         } else if (ev.reason === CloseReason.PARTICIPANT_DISCONNECTED) {
           finalize({ status: 'completed', endReason: profile.hangupEndReason });
         } else {
@@ -262,6 +264,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 
 function describeError(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+
+const PIPELINE_STEP_NAMES: Record<string, string> = {
+  stt_error: 'Speech-to-text',
+  llm_error: 'LLM',
+  tts_error: 'Text-to-speech',
+  realtime_model_error: 'Realtime model',
+};
+
+/**
+ * The session's close error is a `{ type, error, ... }` record, not an `Error` — name the failed
+ * step (SPEC-06 AC-19) and the underlying cause instead of stringifying the record.
+ */
+function describePipelineError(error: { type: string; error?: unknown }): string {
+  const step = PIPELINE_STEP_NAMES[error.type] ?? error.type;
+  return `${step} failed: ${describeError(error.error)}`;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

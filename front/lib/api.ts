@@ -107,6 +107,54 @@ export interface Call {
   durationSeconds: number | null;
 }
 
+export type AgentTestStatus = "in_progress" | "completed" | "failed";
+export type AgentTestEndReason =
+  | "admin_ended"
+  | "admin_disconnected"
+  | "agent_completed"
+  | "admin_unresponsive"
+  | "max_duration_reached";
+export type PromptSource = "saved" | "draft";
+
+/** Admin turns are stored with role `callee`; the UI labels them "You". */
+export interface AgentTestTranscriptTurn {
+  role: "callee" | "agent";
+  text: string;
+  at: string;
+}
+
+/** One row of the test-session history (no transcript, prompt truncated). */
+export interface AgentTestSessionSummary {
+  id: string;
+  status: AgentTestStatus;
+  endReason: AgentTestEndReason | null;
+  failureReason: string | null;
+  promptSource: PromptSource;
+  promptPreview: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationSeconds: number | null;
+}
+
+export interface AgentTestSessionDetail {
+  id: string;
+  status: AgentTestStatus;
+  endReason: AgentTestEndReason | null;
+  failureReason: string | null;
+  promptSource: PromptSource;
+  startedAt: string;
+  endedAt: string | null;
+  durationSeconds: number | null;
+  systemPrompt: string;
+  transcript: AgentTestTranscriptTurn[];
+}
+
+export interface CreatedAgentTestSession {
+  session: AgentTestSessionDetail;
+  server_url: string;
+  participant_token: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -145,6 +193,11 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return payload as T;
+}
+
+/** Agent-test routes are admin-only; the secret travels in a header, never a URL or key. */
+function adminHeaders(adminToken: string): Record<string, string> {
+  return { "X-Admin-Token": adminToken };
 }
 
 /** Unwraps the `{ statusCode, message }` envelope produced by `AllExceptionsFilter`. */
@@ -290,5 +343,44 @@ export const api = {
       `/users/${encodeURIComponent(userId)}/calls/${encodeURIComponent(callId)}`,
       { signal },
     );
+  },
+
+  createAgentTestSession(
+    systemPrompt: string,
+    adminToken: string,
+  ): Promise<CreatedAgentTestSession> {
+    return requestJson<CreatedAgentTestSession>("/agent-tests", {
+      method: "POST",
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify({ systemPrompt }),
+    });
+  },
+
+  async endAgentTestSession(id: string, adminToken: string): Promise<void> {
+    await requestJson<null>(`/agent-tests/${encodeURIComponent(id)}/end`, {
+      method: "POST",
+      headers: adminHeaders(adminToken),
+    });
+  },
+
+  listAgentTestSessions(
+    adminToken: string,
+    { signal }: RequestOptions = {},
+  ): Promise<AgentTestSessionSummary[]> {
+    return requestJson<AgentTestSessionSummary[]>("/agent-tests", {
+      headers: adminHeaders(adminToken),
+      signal,
+    });
+  },
+
+  getAgentTestSession(
+    id: string,
+    adminToken: string,
+    { signal }: RequestOptions = {},
+  ): Promise<AgentTestSessionDetail> {
+    return requestJson<AgentTestSessionDetail>(`/agent-tests/${encodeURIComponent(id)}`, {
+      headers: adminHeaders(adminToken),
+      signal,
+    });
   },
 };

@@ -62,14 +62,18 @@ export class AgentTestsService {
     const savedPrompt = await this.agentSettingsService.getActivePrompt();
     const promptSource = systemPrompt === savedPrompt.trim() ? 'saved' : 'draft';
 
+    // Id and room name are set in the single insert, so no row can exist without its room.
+    const id = randomUUID();
+    const roomName = testRoomName(id);
     const session = this.sessionsRepository.create({
+      id,
       status: 'in_progress',
       endReason: null,
       failureReason: null,
       systemPrompt,
       promptSource,
       transcript: [],
-      roomName: null,
+      roomName,
       endedAt: null,
       durationSeconds: null,
     });
@@ -85,9 +89,6 @@ export class AgentTestsService {
       throw error;
     }
 
-    const roomName = testRoomName(saved.id);
-    saved.roomName = roomName;
-    await this.sessionsRepository.update(saved.id, { roomName });
     this.logger.log(`Test session ${saved.id} created (room=${roomName})`);
 
     let step = 'Room creation';
@@ -109,9 +110,15 @@ export class AgentTestsService {
     }
 
     // AC-18: hard backstop even if neither the admin nor the agent ever reports an end.
-    // Races `markEnded`'s in_progress guard — first outcome wins (AC-20).
+    // Races `markEnded`'s in_progress guard — first outcome wins (AC-20). Best-effort only:
+    // on serverless (Vercel) the timer may never fire, so `expireStale()` also runs on every
+    // create/list/findOne.
     setTimeout(() => {
-      void this.markCompleted(saved.id, 'max_duration_reached');
+      this.markCompleted(saved.id, 'max_duration_reached').catch((error: unknown) => {
+        this.logger.error(
+          `Test session ${saved.id}: max-duration backstop failed: ${describeError(error)}`,
+        );
+      });
     }, this.maxDurationSeconds * 1000).unref();
 
     return { session: saved, ...credentials };
@@ -131,13 +138,32 @@ export class AgentTestsService {
     }
   }
 
-  /** AC-13: most-recent-first. */
-  list(): Promise<AgentTestSession[]> {
-    return this.sessionsRepository.find({ order: { startedAt: 'DESC' } });
+  /** AC-13: most-recent-first, without the transcript (the summary never includes it). */
+  async list(): Promise<AgentTestSession[]> {
+    // AC-18 / edge case: lazy expiry so no row stays in_progress past the max duration.
+    await this.expireStale();
+
+    return this.sessionsRepository.find({
+      select: {
+        id: true,
+        status: true,
+        endReason: true,
+        failureReason: true,
+        promptSource: true,
+        systemPrompt: true,
+        startedAt: true,
+        endedAt: true,
+        durationSeconds: true,
+      },
+      order: { startedAt: 'DESC' },
+    });
   }
 
   /** AC-14/AC-15. */
   async findOne(id: string): Promise<AgentTestSession> {
+    // AC-18 / edge case: lazy expiry (age-based, so a live session is unaffected).
+    await this.expireStale();
+
     const session = await this.findForAgent(id);
     if (!session) {
       throw new NotFoundException('Test session not found');
