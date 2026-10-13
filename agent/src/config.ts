@@ -24,6 +24,8 @@ const envSchema = z.object({
   DEEPGRAM_API_KEY: z.string().min(1),
   /** Tuned for phone-call audio; see @livekit/agents-plugin-deepgram's STTModels. */
   DEEPGRAM_MODEL: optional('nova-2-phonecall'),
+  /** Browser test sessions (SPEC-06): wideband microphone audio, not phone-call audio. */
+  DEEPGRAM_TEST_MODEL: optional('nova-3'),
 
   ANTHROPIC_API_KEY: z.string().min(1),
   ANTHROPIC_MODEL: optional('claude-haiku-4-5-20251001'),
@@ -37,6 +39,11 @@ const envSchema = z.object({
   CALLEE_SILENCE_TIMEOUT_SECONDS: z.preprocess(
     (value) => (value === '' ? undefined : value),
     z.coerce.number().int().positive().default(300),
+  ),
+  /** Browser test sessions: end with `admin_unresponsive` after this long without admin speech. */
+  TEST_SILENCE_TIMEOUT_SECONDS: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.coerce.number().int().positive().default(60),
   ),
 });
 

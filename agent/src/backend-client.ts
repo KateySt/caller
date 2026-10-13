@@ -1,7 +1,11 @@
 /**
- * The agent's only link to call state: `back/`'s `/internal/calls` API, authenticated with
- * the shared `AGENT_INTERNAL_TOKEN`. The agent runs on LiveKit Cloud and has no database access.
+ * The agent's only link to call state: `back/`'s `/internal/calls` API (PSTN calls) and
+ * `/internal/agent-tests` API (browser test sessions, SPEC-06), authenticated with the shared
+ * `AGENT_INTERNAL_TOKEN`. The agent runs on LiveKit Cloud and has no database access.
  */
+
+/** What a job is for, as identified by its dispatch metadata. */
+export type JobTarget = { kind: 'call'; id: string } | { kind: 'test'; id: string };
 
 export type CallStatus = 'in_progress' | 'completed' | 'failed';
 export type CallEndReason =
@@ -9,6 +13,8 @@ export type CallEndReason =
   | 'callee_hangup'
   | 'callee_unresponsive'
   | 'max_duration_reached';
+/** Call end reasons plus the test-session-only ones. */
+export type EndReason = CallEndReason | 'admin_disconnected' | 'admin_unresponsive';
 
 export interface AgentCallContext {
   id: string;
@@ -26,7 +32,7 @@ export interface TranscriptTurn {
 }
 
 export type CallOutcome =
-  | { status: 'completed'; endReason: CallEndReason }
+  | { status: 'completed'; endReason: EndReason }
   | { status: 'failed'; failureReason: string };
 
 const REQUEST_TIMEOUT_MS = 5_000;
@@ -49,10 +55,10 @@ export class BackendClient {
     private readonly token: string,
   ) {}
 
-  /** `null` when the backend has no such call. */
-  async getCall(callId: string): Promise<AgentCallContext | null> {
+  /** `null` when the backend has no such call / test session. */
+  async getContext(target: JobTarget): Promise<AgentCallContext | null> {
     try {
-      const response = await this.request('GET', `/internal/calls/${callId}`);
+      const response = await this.request('GET', basePath(target));
 
       return (await response.json()) as AgentCallContext;
     } catch (error) {
@@ -64,13 +70,13 @@ export class BackendClient {
     }
   }
 
-  async appendTranscriptTurn(callId: string, turn: TranscriptTurn): Promise<void> {
-    await this.request('POST', `/internal/calls/${callId}/transcript`, turn);
+  async appendTranscriptTurn(target: JobTarget, turn: TranscriptTurn): Promise<void> {
+    await this.request('POST', `${basePath(target)}/transcript`, turn);
   }
 
-  /** Idempotent on the backend: the first outcome recorded for a call wins. */
-  async endCall(callId: string, outcome: CallOutcome): Promise<void> {
-    await this.request('POST', `/internal/calls/${callId}/end`, outcome);
+  /** Idempotent on the backend: the first outcome recorded for a call / test session wins. */
+  async end(target: JobTarget, outcome: CallOutcome): Promise<void> {
+    await this.request('POST', `${basePath(target)}/end`, outcome);
   }
 
   /** Retries network errors, timeouts, 429 and 5xx with exponential backoff; 4xx fail fast. */
@@ -116,6 +122,12 @@ export class BackendClient {
 
     throw lastError instanceof Error ? lastError : new BackendError(String(lastError));
   }
+}
+
+function basePath(target: JobTarget): string {
+  return target.kind === 'call'
+    ? `/internal/calls/${target.id}`
+    : `/internal/agent-tests/${target.id}`;
 }
 
 function sleep(ms: number): Promise<void> {
