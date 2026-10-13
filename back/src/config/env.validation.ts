@@ -131,6 +131,11 @@ class EnvironmentVariables {
   @MinLength(32)
   AGENT_INTERNAL_TOKEN: string;
 
+  /** Secret the admin debug UI sends in `X-Admin-Token` to the agent-test routes. Never logged or returned. */
+  @IsString()
+  @MinLength(32)
+  ADMIN_DEBUG_TOKEN: string;
+
   // --- SMS (SPEC-03 AC-8) ---
 
   @IsString()
