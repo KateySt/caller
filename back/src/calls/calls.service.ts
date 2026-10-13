@@ -189,7 +189,9 @@ export class CallsService {
     // The voice agent and the callee hangup path both race this via `markEnded`'s
     // in_progress guard — whichever observes the end first wins (edge case).
     setTimeout(() => {
-      void this.markCompleted(call.id, 'max_duration_reached');
+      this.markCompleted(call.id, 'max_duration_reached').catch((error: unknown) => {
+        this.logger.error(`Call ${call.id}: max-duration backstop failed: ${describeError(error)}`);
+      });
     }, this.maxDurationSeconds * 1000).unref();
   }
 }

@@ -1,11 +1,12 @@
 # agent
 
-The PSTN calling voice agent (`back/specs/SPEC-02`), deployed on its own to **LiveKit Cloud Agents**. TypeScript, native ESM, `@livekit/agents` 1.9 — no NestJS, no database.
+The PSTN calling voice agent (`back/specs/SPEC-02`), deployed on its own to **LiveKit Cloud Agents**. It also serves browser **test sessions** (`back/specs/SPEC-06`). TypeScript, native ESM, `@livekit/agents` 1.9 — no NestJS, no database.
 
 ## How it fits
 
 - `back/` creates the call, then dispatches this agent **explicitly by name** (`LIVEKIT_AGENT_NAME`, default `caller-voice-agent`) into the call's room with job metadata `{ "callId": "<uuid>" }`, and dials the callee over SIP.
 - On each job the agent runs Deepgram STT → Claude (Anthropic) LLM → ElevenLabs TTS for one call.
+- **Test-session mode (SPEC-06):** for an admin talking to the draft prompt from the browser, `back/` dispatches the same agent into room `agent-test-<id>` with metadata `{ "testSessionId": "<uuid>" }`. The job is identical to a call except: STT uses `DEEPGRAM_TEST_MODEL` (wideband mic audio), the silence timeout is `TEST_SILENCE_TIMEOUT_SECONDS` and ends with `admin_unresponsive`, the admin leaving ends with `admin_disconnected`, and state goes to `/api/internal/agent-tests/:testSessionId` (same three endpoints/bodies as below). Admin turns are recorded with role `callee`. Metadata with neither id → the job shuts down without any backend call.
 - **All call state goes through `back/`'s internal API** (`src/backend-client.ts`), authenticated with the shared `AGENT_INTERNAL_TOKEN` bearer token:
   - `GET /api/internal/calls/:callId` — status + snapshotted system prompt.
   - `POST /api/internal/calls/:callId/transcript` — one turn `{ seq, role, text, at }`; idempotent per `seq`.
@@ -36,9 +37,11 @@ The PSTN calling voice agent (`back/specs/SPEC-02`), deployed on its own to **Li
 5. Change secrets: `lk agent update-secrets --secrets-file .env.production` (triggers a rolling restart).
 6. Inspect: `lk agent status`, `lk agent logs`.
 
+**Test sessions need a redeploy (SPEC-06 AC-30):** until the deployed agent includes test-session mode, it cannot handle `{ testSessionId }` jobs and a test session only ends via the backend's max-duration backstop or a failure. After merging, run `lk agent deploy` (plus `lk agent update-secrets` only if overriding the new optional vars).
+
 ## Env
 
-`LIVEKIT_AGENT_NAME` (optional, must match `back/`), `BACKEND_URL` (API base incl. `/api`), `AGENT_INTERNAL_TOKEN` (≥32 chars, same value as in `back/`), `DEEPGRAM_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, optional `DEEPGRAM_MODEL` / `ANTHROPIC_MODEL` / `ELEVENLABS_MODEL`, and `CALLEE_SILENCE_TIMEOUT_SECONDS` (default `300` — hang up with `callee_unresponsive` after that long without any callee speech). Locally also `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET`; never set those as Cloud secrets.
+`LIVEKIT_AGENT_NAME` (optional, must match `back/`), `BACKEND_URL` (API base incl. `/api`), `AGENT_INTERNAL_TOKEN` (≥32 chars, same value as in `back/`), `DEEPGRAM_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, optional `DEEPGRAM_MODEL` / `ANTHROPIC_MODEL` / `ELEVENLABS_MODEL`, and `CALLEE_SILENCE_TIMEOUT_SECONDS` (default `300` — hang up with `callee_unresponsive` after that long without any callee speech). Test sessions only: optional `DEEPGRAM_TEST_MODEL` (default `nova-3`) and `TEST_SILENCE_TIMEOUT_SECONDS` (default `60` — end with `admin_unresponsive`); PSTN calls never use these. Locally also `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET`; never set those as Cloud secrets.
 
 ## Conventions
 

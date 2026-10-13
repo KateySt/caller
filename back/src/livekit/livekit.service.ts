@@ -1,13 +1,22 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
-import { LiveKitAPI, SipCallError, WebhookReceiver, type WebhookEvent } from 'livekit-server-sdk';
+import {
+  AccessToken,
+  LiveKitAPI,
+  SipCallError,
+  TrackSource,
+  WebhookReceiver,
+  type WebhookEvent,
+} from 'livekit-server-sdk';
 
 const REQUEST_TIMEOUT_SECONDS = 10;
 /** Agent + callee. */
 const MAX_PARTICIPANTS = 2;
 /** Tear the room down a minute after the last participant leaves. */
 const EMPTY_TIMEOUT_SECONDS = 60;
+/** Browser test participants only need a short-lived token to join once. */
+const PARTICIPANT_TOKEN_TTL = '10m';
 
 /**
  * Owns every LiveKit credential and SDK type. No other module touches the API key,
@@ -17,23 +26,26 @@ const EMPTY_TIMEOUT_SECONDS = 60;
 export class LiveKitService {
   private readonly logger = new Logger(LiveKitService.name);
 
+  private readonly serverUrl: string;
+  private readonly apiKey: string;
+  private readonly apiSecret: string;
   private readonly api: LiveKitAPI;
   private readonly webhookReceiver: WebhookReceiver;
 
   // Explicit @Inject: see AppController's constructor comment — this whole module tree
   // also runs under Vitest (esbuild), which doesn't emit DI-reflection metadata.
   constructor(@Inject(ConfigService) configService: ConfigService) {
-    const serverUrl = configService.getOrThrow<string>('LIVEKIT_URL');
-    const apiKey = configService.getOrThrow<string>('LIVEKIT_API_KEY');
-    const apiSecret = configService.getOrThrow<string>('LIVEKIT_API_SECRET');
+    this.serverUrl = configService.getOrThrow<string>('LIVEKIT_URL');
+    this.apiKey = configService.getOrThrow<string>('LIVEKIT_API_KEY');
+    this.apiSecret = configService.getOrThrow<string>('LIVEKIT_API_SECRET');
 
     this.api = new LiveKitAPI({
-      host: serverUrl,
-      apiKey,
-      secret: apiSecret,
+      host: this.serverUrl,
+      apiKey: this.apiKey,
+      secret: this.apiSecret,
       requestTimeout: REQUEST_TIMEOUT_SECONDS,
     });
-    this.webhookReceiver = new WebhookReceiver(apiKey, apiSecret);
+    this.webhookReceiver = new WebhookReceiver(this.apiKey, this.apiSecret);
   }
 
   /** Verifies a LiveKit webhook against the raw request body (a parsed object will fail). */
@@ -68,6 +80,42 @@ export class LiveKitService {
       this.logger.error(`Agent dispatch failed for room=${roomName}: ${describeError(error)}`);
       throw new Error(`Failed to dispatch the calling agent: ${describeError(error)}`);
     }
+  }
+
+  /** Explicit dispatch of the voice agent into a browser test room (metadata carries the test session id). */
+  async dispatchTestAgent(roomName: string, agentName: string, testSessionId: string): Promise<void> {
+    try {
+      await this.api.agentDispatch.createDispatch(roomName, agentName, {
+        metadata: JSON.stringify({ testSessionId }),
+      });
+    } catch (error) {
+      this.logger.error(`Test agent dispatch failed for room=${roomName}: ${describeError(error)}`);
+      throw new Error(`Failed to dispatch the test agent: ${describeError(error)}`);
+    }
+  }
+
+  /**
+   * Mints a short-lived browser token scoped to one room: microphone publish + subscribe
+   * only — no data publishing and no room admin/create/list/record rights.
+   */
+  async createParticipantToken(
+    roomName: string,
+    identity: string,
+  ): Promise<{ serverUrl: string; participantToken: string }> {
+    const token = new AccessToken(this.apiKey, this.apiSecret, {
+      identity,
+      ttl: PARTICIPANT_TOKEN_TTL,
+    });
+    token.addGrant({
+      room: roomName,
+      roomJoin: true,
+      canPublish: true,
+      canPublishSources: [TrackSource.MICROPHONE],
+      canSubscribe: true,
+      canPublishData: false,
+    });
+
+    return { serverUrl: this.serverUrl, participantToken: await token.toJwt() };
   }
 
   /**

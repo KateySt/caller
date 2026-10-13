@@ -18,3 +18,4 @@ Feature specs for `back/` live here, one file per feature: `SPEC-NN-<slug>.md`.
 | SPEC-03 | SMS text messaging from the user list | draft |
 | SPEC-04 | Telegram bot client linking and conversation log (UI: `front/specs/SPEC-03`) | draft |
 | SPEC-05 | Scheduled calls and messages (UI: `front/specs/SPEC-04`) | draft |
+| SPEC-06 | Browser agent test sessions, admin debug mode (UI: `front/specs/SPEC-05`) | draft |

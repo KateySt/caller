@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { AgentSettingsForm } from "@/components/agent-settings-form";
+import Link from "next/link";
+import { AgentSettingsWorkspace } from "@/components/agent-settings-workspace";
 import { api } from "@/lib/api";
 import { agentSettingsQueries } from "@/lib/queries/agent-settings";
 import { makeQueryClient } from "@/lib/query-client";
@@ -26,12 +27,20 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-10">
-      <header className="mb-6">
-        <h1 className="font-heading text-2xl font-semibold">Agent Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          This system prompt is used by the calling agent on every outbound call.
-        </p>
+    <main className="mx-auto w-full max-w-6xl px-6 py-10">
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold">Agent Settings</h1>
+          <p className="text-sm text-muted-foreground">
+            This system prompt is used by the calling agent on every outbound call.
+          </p>
+        </div>
+        <Link
+          href="/agent-tests"
+          className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Test history
+        </Link>
       </header>
 
       {!isLoaded ? (
@@ -43,7 +52,7 @@ export default async function HomePage() {
         </p>
       ) : (
         <HydrationBoundary state={dehydrate(queryClient)}>
-          <AgentSettingsForm />
+          <AgentSettingsWorkspace />
         </HydrationBoundary>
       )}
     </main>
