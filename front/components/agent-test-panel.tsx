@@ -25,6 +25,11 @@ import { agentTestKeys } from "@/lib/queries/agent-tests";
 const RELEASE_FALLBACK_MS = 15_000;
 /** One extra detail fetch this long after the session ends, to catch late final transcript turns. */
 const FINAL_TRANSCRIPT_REFETCH_MS = 2_500;
+/**
+ * How long to wait for the agent before showing "did not join". The Cloud agent scales to zero, and
+ * a cold start alone takes ~15–20 s — the SDK's 20 s default fails a healthy agent.
+ */
+const AGENT_JOIN_TIMEOUT_MS = 60_000;
 
 interface AgentTestPanelProps {
   created: CreatedAgentTestSession;
@@ -51,7 +56,7 @@ export function AgentTestPanel({ created, onEnded, onStartNew }: AgentTestPanelP
     [created.server_url, created.participant_token],
   );
   // No `agentName`: the backend has already dispatched the test agent into this room.
-  const session = useSession(tokenSource);
+  const session = useSession(tokenSource, { agentConnectTimeoutMilliseconds: AGENT_JOIN_TIMEOUT_MS });
   const agent = useAgent(session);
   const { room } = session;
   // The backend is the source of truth for the end reason and final transcript; polled while in progress.
